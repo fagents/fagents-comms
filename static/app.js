@@ -388,15 +388,7 @@ async function pollActivity() {
     if (feed.innerHTML !== newHtml) {
       feed.innerHTML = newHtml;
       feed.scrollTop = feed.scrollHeight;
-      // Filter to followed agents (server-rendered pills)
-      const followPills = document.querySelectorAll('#activityPicker .ch-member');
-      if (followPills.length > 0) {
-        const followed = new Set();
-        followPills.forEach(p => followed.add(p.textContent.trim()));
-        document.querySelectorAll('.act-item').forEach(el => {
-          el.style.display = followed.has(el.dataset.agent) ? '' : 'none';
-        });
-      }
+      filterFollowed();
     }
   } catch(e) {}
 }
@@ -689,6 +681,14 @@ function filterFollowed() {
     pills.forEach(p => followed.add(p.textContent.trim()));
     document.querySelectorAll('.act-item').forEach(el => {
       el.style.display = followed.has(el.dataset.agent) ? '' : 'none';
+    });
+    // Hide separators between hidden items (ghost lines)
+    document.querySelectorAll('.act-sep').forEach(sep => {
+      const prev = sep.previousElementSibling;
+      const next = sep.nextElementSibling;
+      const prevVisible = prev && prev.classList.contains('act-item') && prev.style.display !== 'none';
+      const nextVisible = next && next.classList.contains('act-item') && next.style.display !== 'none';
+      sep.style.display = (prevVisible && nextVisible) ? '' : 'none';
     });
   }
 }
