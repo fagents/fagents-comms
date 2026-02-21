@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.comms-token
+tokens.json
+channels/
+.session
+*.log
+.pid
+.venv/
+uploads/
+channels.json
+subscriptions.json
+agent_config.json
+agent_health.json
+channel_order.json
+read_markers.json
