@@ -559,8 +559,6 @@ function saveAccess() {
   });
 }
 
-preserveScroll(pollGitLog)();
-
 // Agent health polling — compact sidebar panels
 let lastAgentSnap = '';
 
