@@ -388,17 +388,23 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass  # suppress access logs
 
+    def _cookie_name(self):
+        """Port-specific cookie name so multiple servers on 127.0.0.1 don't collide."""
+        port = self.server.server_address[1]
+        return f"comms_token_{port}"
+
     def get_token(self):
         """Extract raw token from Authorization header or cookie."""
         # Bearer token
         auth = self.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
             return auth[7:].strip()
-        # Cookie
+        # Cookie (port-specific name to avoid collision across servers)
+        cookie_name = self._cookie_name()
         cookie = self.headers.get("Cookie", "")
         for part in cookie.split(";"):
             part = part.strip()
-            if part.startswith("comms_token="):
+            if part.startswith(f"{cookie_name}="):
                 return part.split("=", 1)[1]
         # Query param (for browser initial auth)
         parsed = urllib.parse.urlparse(self.path)
@@ -408,9 +414,10 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
         return None
 
     def set_token_cookie(self, raw_token):
+        cookie_name = self._cookie_name()
         self.send_header(
             "Set-Cookie",
-            f"comms_token={raw_token}; HttpOnly; SameSite=Strict; Path=/",
+            f"{cookie_name}={raw_token}; HttpOnly; SameSite=Strict; Path=/",
         )
 
     def send_json(self, data, status=200):

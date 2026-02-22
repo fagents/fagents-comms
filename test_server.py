@@ -335,8 +335,9 @@ class TestAuth:
     def test_cookie_auth(self, url_and_token):
         """Cookie-based auth works for API requests."""
         url, token = url_and_token
+        port = url.rsplit(":", 1)[1]
         req = urllib.request.Request(f"{url}/api/whoami")
-        req.add_header("Cookie", f"comms_token={token}")
+        req.add_header("Cookie", f"comms_token_{port}={token}")
         with urllib.request.urlopen(req) as resp:
             data = json.loads(resp.read().decode())
         assert data["agent"] == "TestBot"
@@ -791,7 +792,8 @@ class TestWebUI:
         req = urllib.request.Request(f"{url}/?token={token}")
         with urllib.request.urlopen(req) as resp:
             cookie = resp.headers.get("Set-Cookie", "")
-        assert "comms_token=" in cookie
+        port = url.rsplit(":", 1)[1]
+        assert f"comms_token_{port}=" in cookie
         assert "HttpOnly" in cookie
 
     def test_web_ui_channel_param(self, url_and_token):
