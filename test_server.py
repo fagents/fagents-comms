@@ -2699,7 +2699,7 @@ class TestChannelOrder:
     def test_put_and_get_order(self, url_and_token):
         """PUT saves order, GET returns it."""
         url, token = url_and_token
-        order = ["general", "red-team-imagine", "fagents-comms"]
+        order = ["general", "dev-updates", "fagents-comms"]
         status, data = _raw_request(url, token, "PUT", "/api/preferences/channel-order",
                                      {"order": order})
         assert status == 200

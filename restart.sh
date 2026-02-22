@@ -1,8 +1,8 @@
 #!/bin/bash
-# Restart the fagents-comms server on port 9754
-# Usage: ./restart.sh
+# Restart the fagents-comms server
+# Usage: ./restart.sh [PORT]
 
-PORT=9754
+PORT="${1:-9753}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "Stopping server on port $PORT..."
