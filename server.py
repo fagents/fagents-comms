@@ -24,6 +24,10 @@ import time
 import urllib.parse
 import uuid
 from datetime import datetime, timedelta, timezone
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    ZoneInfo = None  # Python < 3.9
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent
@@ -244,6 +248,58 @@ def get_agent_profile(agent_name):
         "timezone": profile.get("timezone", ""),
         "status": profile.get("status", ""),
     }
+
+
+def compute_agent_availability(agent_name, profile, health):
+    """Compute availability for an agent based on type, timezone, and health.
+
+    Returns dict with: name, type, availability, and context fields.
+    Availability values: 'available', 'away', 'offline', 'unknown'.
+    """
+    agent_type = profile.get("type", "ai")
+    now = time.time()
+    result = {
+        "name": agent_name,
+        "type": agent_type,
+        "role": profile.get("role", ""),
+        "status": profile.get("status", ""),
+    }
+
+    if agent_type == "human":
+        tz_str = profile.get("timezone", "")
+        if tz_str and ZoneInfo is not None:
+            try:
+                tz = ZoneInfo(tz_str)
+                local_now = datetime.now(tz)
+                hour = local_now.hour
+                result["local_time"] = local_now.strftime("%H:%M")
+                result["timezone"] = tz_str
+                if 8 <= hour < 23:
+                    result["availability"] = "available"
+                else:
+                    result["availability"] = "away"
+            except (KeyError, Exception):
+                result["availability"] = "unknown"
+        else:
+            result["availability"] = "unknown"
+    else:
+        # AI: availability based on health reporting
+        reported_at = health.get("reported_at") if health else None
+        if reported_at:
+            age = now - reported_at
+            if age < 300:
+                result["availability"] = "online"
+            elif age < 3600:
+                result["availability"] = "idle"
+            else:
+                result["availability"] = "offline"
+            result["last_seen_secs"] = int(age)
+        else:
+            result["availability"] = "offline"
+        if health:
+            result["context_pct"] = health.get("context_pct", 0)
+
+    return result
 
 
 # ── Channel order preferences ─────────────────────────────────────
@@ -802,6 +858,18 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             agent_name = resolve_agent_name(path_param(path))
             profile = get_agent_profile(agent_name)
             self.send_json({"agent": agent_name, "profile": profile})
+
+        # ── API: agent availability ──
+        elif path == "/api/agents/available":
+            profiles = load_agent_profiles()
+            tokens = load_tokens()
+            all_names = sorted(set(tokens.values()))
+            agents_avail = []
+            for name in all_names:
+                profile = get_agent_profile(name)
+                health = AGENT_HEALTH.get(name)
+                agents_avail.append(compute_agent_availability(name, profile, health))
+            self.send_json({"agents": agents_avail})
 
         # ── API: list agents ──
         elif path == "/api/agents/list":
