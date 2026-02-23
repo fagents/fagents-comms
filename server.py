@@ -35,6 +35,7 @@ AGENT_CONFIG_FILE = SCRIPT_DIR / "agent_config.json"
 AGENT_HEALTH_FILE = SCRIPT_DIR / "agent_health.json"
 CHANNEL_ORDER_FILE = SCRIPT_DIR / "channel_order.json"
 READ_MARKERS_FILE = SCRIPT_DIR / "read_markers.json"
+AGENT_PROFILES_FILE = SCRIPT_DIR / "agent_profiles.json"
 DEFAULT_PORT = 9753
 BIND_ADDR = "127.0.0.1"
 MAX_MESSAGE_LEN = 10000
@@ -213,6 +214,36 @@ def load_agent_config():
 
 def save_agent_config(config):
     _save_json(AGENT_CONFIG_FILE, config)
+
+
+# ── Agent profiles ─────────────────────────────────────────────────────
+
+AGENT_TYPES = ("human", "ai")
+AGENT_PROFILE_FIELDS = {"type", "display_name", "role", "bio", "timezone", "status"}
+AGENT_PROFILE_MAX_LENGTHS = {"display_name": 50, "role": 100, "bio": 500, "timezone": 50, "status": 200}
+
+
+def load_agent_profiles():
+    """Load agent_profiles.json → {agent_name: {type, display_name, role, bio, ...}}."""
+    return _load_json(AGENT_PROFILES_FILE)
+
+
+def save_agent_profiles(profiles):
+    _save_json(AGENT_PROFILES_FILE, profiles)
+
+
+def get_agent_profile(agent_name):
+    """Get profile for an agent, with defaults."""
+    profiles = load_agent_profiles()
+    profile = profiles.get(agent_name, {})
+    return {
+        "type": profile.get("type", "ai"),
+        "display_name": profile.get("display_name", ""),
+        "role": profile.get("role", ""),
+        "bio": profile.get("bio", ""),
+        "timezone": profile.get("timezone", ""),
+        "status": profile.get("status", ""),
+    }
 
 
 # ── Channel order preferences ─────────────────────────────────────
@@ -727,7 +758,16 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
 
         # ── API: list agents with health ──
         elif path == "/api/agents":
-            self.send_json(AGENT_HEALTH)
+            profiles = load_agent_profiles()
+            result = {}
+            for name, health in AGENT_HEALTH.items():
+                result[name] = {**health, "type": profiles.get(name, {}).get("type", "ai")}
+            # Include agents with profiles but no health data
+            tokens = load_tokens()
+            for name in set(tokens.values()):
+                if name not in result:
+                    result[name] = {"type": profiles.get(name, {}).get("type", "ai")}
+            self.send_json(result)
 
         # ── API: specific agent health ──
         elif path.startswith("/api/agents/") and path.endswith("/health"):
@@ -756,6 +796,12 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             all_config = load_agent_config()
             agent_cfg = {**AGENT_CONFIG_DEFAULTS, **all_config.get(agent_name, {})}
             self.send_json({"agent": agent_name, "config": agent_cfg})
+
+        # ── API: agent profile ──
+        elif path.startswith("/api/agents/") and path.endswith("/profile"):
+            agent_name = resolve_agent_name(path_param(path))
+            profile = get_agent_profile(agent_name)
+            self.send_json({"agent": agent_name, "profile": profile})
 
         # ── API: list agents ──
         elif path == "/api/agents/list":
@@ -1026,7 +1072,15 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
                 self.send_json({"ok": False, "error": "Invalid name"}, 400)
                 return
             token = add_agent(name)
-            print(f"Agent '{name}' created via API")
+            # Set agent type if provided
+            agent_type = data.get("type", "ai")
+            if agent_type in AGENT_TYPES:
+                profiles = load_agent_profiles()
+                if name not in profiles:
+                    profiles[name] = {}
+                profiles[name]["type"] = agent_type
+                save_agent_profiles(profiles)
+            print(f"Agent '{name}' created via API (type: {agent_type})")
             self.send_json({"ok": True, "agent": name, "token": token})
             return
 
@@ -1170,6 +1224,36 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             merged = {**AGENT_CONFIG_DEFAULTS, **existing}
             self.send_json({"ok": True, "agent": agent_name, "config": merged})
 
+        # ── API: update agent profile ──
+        elif path.startswith("/api/agents/") and path.endswith("/profile"):
+            agent_name = self.require_own_agent(path, agent)
+            if not agent_name:
+                return
+            profiles = load_agent_profiles()
+            existing = profiles.get(agent_name, {})
+            # Validate and merge fields
+            for key in AGENT_PROFILE_FIELDS:
+                if key not in data:
+                    continue
+                val = data[key]
+                if key == "type":
+                    if val not in AGENT_TYPES:
+                        self.send_text(f"type must be one of: {', '.join(AGENT_TYPES)}", 400)
+                        return
+                else:
+                    if not isinstance(val, str):
+                        self.send_text(f"{key} must be a string", 400)
+                        return
+                    max_len = AGENT_PROFILE_MAX_LENGTHS.get(key, 200)
+                    if len(val) > max_len:
+                        self.send_text(f"{key} too long (max {max_len})", 400)
+                        return
+                existing[key] = val
+            profiles[agent_name] = existing
+            save_agent_profiles(profiles)
+            profile = get_agent_profile(agent_name)
+            self.send_json({"ok": True, "agent": agent_name, "profile": profile})
+
         # ── API: update agent channel subscriptions ──
         elif path.startswith("/api/agents/") and path.endswith("/channels"):
             agent_name = resolve_agent_name(self.require_path_param(path, "agent name"))
@@ -1262,20 +1346,28 @@ def main():
                         help="Command to run")
     parser.add_argument("name", nargs="?", help="Agent name (for add-agent)")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--type", choices=AGENT_TYPES, default="ai",
+                        help="Agent type: human or ai (default: ai)")
     args = parser.parse_args()
 
     ensure_channels_dir()
 
     if args.command == "add-agent":
         if not args.name:
-            print("Usage: server.py add-agent <name>", file=sys.stderr)
+            print("Usage: server.py add-agent <name> [--type human|ai]", file=sys.stderr)
             sys.exit(1)
         name = sanitize_name(args.name)
         if not name:
             print("Invalid agent name", file=sys.stderr)
             sys.exit(1)
         token = add_agent(name)
-        print(f"Agent '{name}' added.")
+        # Save agent type to profile
+        profiles = load_agent_profiles()
+        if name not in profiles:
+            profiles[name] = {}
+        profiles[name]["type"] = args.type
+        save_agent_profiles(profiles)
+        print(f"Agent '{name}' added (type: {args.type}).")
         print(f"Token: {token}")
         print(f"Use: curl -H 'Authorization: Bearer {token}' http://localhost:{args.port}/api/channels/general/messages")
         return
@@ -1285,8 +1377,10 @@ def main():
         if not tokens:
             print("No agents registered.")
         else:
+            profiles = load_agent_profiles()
             for h, name in sorted(tokens.items(), key=lambda x: x[1]):
-                print(f"  {name} (hash: {h[:12]}...)")
+                agent_type = profiles.get(name, {}).get("type", "ai")
+                print(f"  {name} [{agent_type}] (hash: {h[:12]}...)")
         return
 
     # serve

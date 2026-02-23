@@ -56,6 +56,8 @@ def server_info(test_dir):
         os.path.join(test_dir, "agent_health.json"))
     _server_module.AGENT_CONFIG_FILE = _server_module.Path(
         os.path.join(test_dir, "agent_config.json"))
+    _server_module.AGENT_PROFILES_FILE = _server_module.Path(
+        os.path.join(test_dir, "agent_profiles.json"))
     _server_module.AGENT_HEALTH.clear()
     _server_module.AGENT_ACTIVITY.clear()
     _server_module.AGENT_READ_MARKERS.clear()
@@ -4463,3 +4465,108 @@ class TestAgentsPage:
             assert "fagents-comms" in body
             assert "Agents" in body
             assert "agentList" in body
+
+
+class TestAgentProfiles:
+    """Tests for agent profile endpoints (human/AI cooperation foundation)."""
+
+    def test_get_profile_defaults(self, server_info):
+        """GET profile for agent with no profile set returns defaults (type=ai)."""
+        url, token, name = server_info
+        s, data = _raw_request(url, token, "GET", f"/api/agents/{name}/profile")
+        assert s == 200
+        assert data["agent"] == name
+        assert data["profile"]["type"] == "ai"
+        assert data["profile"]["bio"] == ""
+        assert data["profile"]["role"] == ""
+
+    def test_set_profile_type_human(self, server_info):
+        """PUT profile with type=human sets the agent as human."""
+        url, token, name = server_info
+        s, data = _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                               {"type": "human", "role": "Team lead"})
+        assert s == 200
+        assert data["ok"] is True
+        assert data["profile"]["type"] == "human"
+        assert data["profile"]["role"] == "Team lead"
+
+    def test_get_profile_persists(self, server_info):
+        """Profile changes persist across reads."""
+        url, token, name = server_info
+        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                     {"bio": "I handle deployments", "display_name": "Juho"})
+        s, data = _raw_request(url, token, "GET", f"/api/agents/{name}/profile")
+        assert s == 200
+        assert data["profile"]["bio"] == "I handle deployments"
+        assert data["profile"]["display_name"] == "Juho"
+
+    def test_partial_update_preserves_fields(self, server_info):
+        """PUT with partial fields preserves existing fields."""
+        url, token, name = server_info
+        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                     {"role": "Engineer", "bio": "Builds things"})
+        # Now update only role
+        s, data = _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                               {"role": "Lead Engineer"})
+        assert s == 200
+        assert data["profile"]["role"] == "Lead Engineer"
+        assert data["profile"]["bio"] == "Builds things"  # preserved
+
+    def test_invalid_type_rejected(self, server_info):
+        """PUT with invalid type → 400."""
+        url, token, name = server_info
+        s, data = _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                               {"type": "robot"})
+        assert s == 400
+
+    def test_bio_too_long_rejected(self, server_info):
+        """PUT with bio exceeding max length → 400."""
+        url, token, name = server_info
+        s, data = _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                               {"bio": "x" * 501})
+        assert s == 400
+
+    def test_cannot_edit_other_agent_profile(self, server_info):
+        """PUT to another agent's profile → 403."""
+        url, token, name = server_info
+        s, data = _raw_request(url, token, "PUT", "/api/agents/SomeOtherAgent/profile",
+                               {"bio": "hacked"})
+        assert s == 403
+
+    def test_any_agent_can_read_any_profile(self, server_info):
+        """GET on another agent's profile is allowed (cooperation: AIs read human profiles)."""
+        url, token, name = server_info
+        # Create a second agent
+        token2 = _server_module.add_agent("HumanUser")
+        # Set their profile directly
+        profiles = _server_module.load_agent_profiles()
+        profiles["HumanUser"] = {"type": "human", "role": "Designer", "bio": "Ask me about UX"}
+        _server_module.save_agent_profiles(profiles)
+        # First agent reads second agent's profile
+        s, data = _raw_request(url, token, "GET", "/api/agents/HumanUser/profile")
+        assert s == 200
+        assert data["profile"]["type"] == "human"
+        assert data["profile"]["bio"] == "Ask me about UX"
+
+    def test_agents_list_includes_type(self, server_info):
+        """GET /api/agents includes type field from profiles."""
+        url, token, name = server_info
+        # Set profile type
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "ai"}
+        _server_module.save_agent_profiles(profiles)
+        s, data = _raw_request(url, token, "GET", "/api/agents")
+        assert s == 200
+        assert name in data
+        assert data[name]["type"] == "ai"
+
+    def test_create_agent_with_type(self, server_info):
+        """POST /api/agents with type sets profile type."""
+        url, token, name = server_info
+        s, data = _raw_request(url, token, "POST", "/api/agents",
+                               {"name": "NewHuman", "type": "human"})
+        assert s == 200
+        assert data["ok"] is True
+        # Verify profile was set
+        profile = _server_module.get_agent_profile("NewHuman")
+        assert profile["type"] == "human"
