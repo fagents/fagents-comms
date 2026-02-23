@@ -216,14 +216,18 @@ def render_agent_panels_html(agent_names, agent_health):
     return "\n".join(panels)
 
 
-def render_compact_agent_panels_html(agent_names, agent_health):
-    """Render simplified agent list for chat sidebar — name + context % + status."""
+def render_compact_agent_panels_html(agent_names, agent_health, agent_profiles=None):
+    """Render simplified agent list for chat sidebar — name + type + context/role."""
     if not agent_names:
         return '<div class="agent-empty">No agents registered</div>'
+    profiles = agent_profiles or {}
     panels = []
     for name in agent_names:
         ename = html.escape(name)
         h = agent_health.get(name)
+        prof = profiles.get(name, {})
+        agent_type = prof.get("type", "ai")
+        is_human = agent_type == "human"
         if h:
             pct = h.get("context_pct", 0)
             age_secs = int(time.time() - h["reported_at"]) if "reported_at" in h else None
@@ -232,19 +236,31 @@ def render_compact_agent_panels_html(agent_names, agent_health):
         else:
             pct = 0
             dot_color = "#484f58"
-        bar_class = next(
-            (cls for thresh, cls in [(40, "ctx-healthy"), (70, "ctx-warming"), (90, "ctx-heavy")]
-             if pct < thresh),
-            "ctx-critical"
-        )
+        type_icon = '<span style="font-size:9px;margin-right:2px" title="human">&#128100;</span>' if is_human else ''
         dot = f'<span style="color:{dot_color};font-size:8px;margin-right:4px">&#9679;</span>'
-        panels.append(
-            f'<div style="display:flex;align-items:center;gap:6px;padding:3px 8px;font-size:11px">'
-            f'<span style="flex:1;white-space:nowrap">{dot}{ename}</span>'
-            f'<div class="ctx-bar" style="width:50px"><div class="ctx-fill {bar_class}" style="width:{pct}%"></div></div>'
-            f'<span style="color:#8b949e;width:28px;text-align:right">{pct}%</span>'
-            f'</div>'
-        )
+        if is_human:
+            role = html.escape(prof.get("role", ""))
+            status = html.escape(prof.get("status", ""))
+            detail = role or status or "human"
+            panels.append(
+                f'<div style="display:flex;align-items:center;gap:6px;padding:3px 8px;font-size:11px">'
+                f'<span style="flex:1;white-space:nowrap">{dot}{type_icon}{ename}</span>'
+                f'<span style="color:#3498db;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100px">{detail}</span>'
+                f'</div>'
+            )
+        else:
+            bar_class = next(
+                (cls for thresh, cls in [(40, "ctx-healthy"), (70, "ctx-warming"), (90, "ctx-heavy")]
+                 if pct < thresh),
+                "ctx-critical"
+            )
+            panels.append(
+                f'<div style="display:flex;align-items:center;gap:6px;padding:3px 8px;font-size:11px">'
+                f'<span style="flex:1;white-space:nowrap">{dot}{ename}</span>'
+                f'<div class="ctx-bar" style="width:50px"><div class="ctx-fill {bar_class}" style="width:{pct}%"></div></div>'
+                f'<span style="color:#8b949e;width:28px;text-align:right">{pct}%</span>'
+                f'</div>'
+            )
     panels.append(
         '<div style="padding:6px 8px;font-size:11px">'
         '<a href="/agents" style="color:#58a6ff;text-decoration:none">Manage agents &rarr;</a>'
@@ -872,7 +888,8 @@ setInterval(async () => {{
 def page_html(channel_name, messages, channels_list, agent_names,
               agent_health, agent_activity, channel_acl=None,
               current_agent=None, channel_description="",
-              total_count=None, activity_follow=None):
+              total_count=None, activity_follow=None,
+              agent_profiles=None):
     """Render the full web UI page.
 
     Args:
@@ -885,9 +902,10 @@ def page_html(channel_name, messages, channels_list, agent_names,
         channel_acl: Optional ACL dict with 'allow' list for current channel
         current_agent: Authenticated agent name (shown as sender identity)
         total_count: Total message count in channel (may differ from len(messages) due to truncation)
+        agent_profiles: {agent_name: profile_dict} for type-aware rendering
     """
     msg_html = render_messages_html(messages)
-    agent_html = render_compact_agent_panels_html(agent_names, agent_health)
+    agent_html = render_compact_agent_panels_html(agent_names, agent_health, agent_profiles)
     activity_html = render_activity_html(agent_activity)
     count = total_count if total_count is not None else len(messages)
 

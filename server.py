@@ -702,11 +702,13 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             channel_description = channel_acl.get("description", "")
             agent_cfg = load_agent_config().get(agent, {})
             activity_follow = agent_cfg.get("activity_follow", [])
+            agent_profiles = {n: get_agent_profile(n) for n in agent_names}
             content = page_html(channel_name, messages, channels,
                                 agent_names, AGENT_HEALTH, AGENT_ACTIVITY,
                                 channel_acl, agent, channel_description,
                                 total_count=total_count,
-                                activity_follow=activity_follow).encode()
+                                activity_follow=activity_follow,
+                                agent_profiles=agent_profiles).encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
