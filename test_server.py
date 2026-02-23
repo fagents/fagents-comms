@@ -4785,3 +4785,64 @@ class TestTypeFilter:
         assert s == 200
         assert name in data
         assert name2 not in data
+
+
+class TestTypeAwareACL:
+    """Tests for @humans/@ais in channel ACLs."""
+
+    def test_humans_acl_grants_human_access(self, server_info, second_agent):
+        """Channel with allow=[@humans] is accessible by human agents."""
+        url, token, name = server_info
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "human"}
+        _server_module.save_agent_profiles(profiles)
+        _raw_request(url, token, "POST", "/api/channels", {"name": "human-only"})
+        acl = _server_module.load_channels_acl()
+        acl["human-only"] = {"allow": ["@humans"]}
+        _server_module.save_channels_acl(acl)
+        s, data = _raw_request(url, token, "GET", "/api/channels/human-only/messages")
+        assert s == 200
+
+    def test_humans_acl_blocks_ai(self, server_info, second_agent):
+        """Channel with allow=[@humans] blocks AI agents."""
+        url, token, name = server_info
+        token2, name2 = second_agent
+        profiles = _server_module.load_agent_profiles()
+        profiles[name2] = {"type": "ai"}
+        _server_module.save_agent_profiles(profiles)
+        _raw_request(url, token, "POST", "/api/channels", {"name": "human-only2"})
+        acl = _server_module.load_channels_acl()
+        acl["human-only2"] = {"allow": ["@humans"]}
+        _server_module.save_channels_acl(acl)
+        s, data = _raw_request(url, token2, "GET", "/api/channels/human-only2/messages")
+        assert s == 403
+
+    def test_ais_acl_grants_ai_access(self, server_info, second_agent):
+        """Channel with allow=[@ais] is accessible by AI agents."""
+        url, token, name = server_info
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "ai"}
+        _server_module.save_agent_profiles(profiles)
+        _raw_request(url, token, "POST", "/api/channels", {"name": "ai-only"})
+        acl = _server_module.load_channels_acl()
+        acl["ai-only"] = {"allow": ["@ais"]}
+        _server_module.save_channels_acl(acl)
+        s, data = _raw_request(url, token, "GET", "/api/channels/ai-only/messages")
+        assert s == 200
+
+    def test_mixed_acl_humans_and_specific(self, server_info, second_agent):
+        """Channel with allow=[@humans, SpecificAI] works for both."""
+        url, token, name = server_info
+        token2, name2 = second_agent
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "human"}
+        profiles[name2] = {"type": "ai"}
+        _server_module.save_agent_profiles(profiles)
+        _raw_request(url, token, "POST", "/api/channels", {"name": "mixed-acl"})
+        acl = _server_module.load_channels_acl()
+        acl["mixed-acl"] = {"allow": ["@humans", name2]}
+        _server_module.save_channels_acl(acl)
+        s1, _ = _raw_request(url, token, "GET", "/api/channels/mixed-acl/messages")
+        s2, _ = _raw_request(url, token2, "GET", "/api/channels/mixed-acl/messages")
+        assert s1 == 200
+        assert s2 == 200

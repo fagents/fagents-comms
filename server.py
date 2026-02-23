@@ -166,13 +166,26 @@ def save_channels_acl(acl):
 
 
 def agent_can_access(channel_name, agent_name):
-    """Check if agent has access to channel. No ACL file or no entry = open."""
+    """Check if agent has access to channel. No ACL file or no entry = open.
+
+    Supports group ACL entries: @humans (all human-type agents),
+    @ais (all AI-type agents), * (everyone), or specific agent names.
+    """
     acl = load_channels_acl()
     entry = acl.get(channel_name)
     if entry is None:
         return True  # no ACL entry = open (backwards compat)
     allow = entry.get("allow", [])
-    return "*" in allow or agent_name in allow
+    if "*" in allow or agent_name in allow:
+        return True
+    if "@humans" in allow or "@ais" in allow:
+        profile = get_agent_profile(agent_name)
+        agent_type = profile.get("type", "ai")
+        if "@humans" in allow and agent_type == "human":
+            return True
+        if "@ais" in allow and agent_type == "ai":
+            return True
+    return False
 
 
 def list_accessible_channels(agent_name):
