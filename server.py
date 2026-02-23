@@ -830,14 +830,21 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
         # ── API: list agents with health ──
         elif path == "/api/agents":
             profiles = load_agent_profiles()
+            type_filter = params.get("type", [None])[0]
             result = {}
             for name, health in AGENT_HEALTH.items():
-                result[name] = {**health, "type": profiles.get(name, {}).get("type", "ai")}
+                agent_type = profiles.get(name, {}).get("type", "ai")
+                if type_filter and agent_type != type_filter:
+                    continue
+                result[name] = {**health, "type": agent_type}
             # Include agents with profiles but no health data
             tokens = load_tokens()
             for name in set(tokens.values()):
                 if name not in result:
-                    result[name] = {"type": profiles.get(name, {}).get("type", "ai")}
+                    agent_type = profiles.get(name, {}).get("type", "ai")
+                    if type_filter and agent_type != type_filter:
+                        continue
+                    result[name] = {"type": agent_type}
             self.send_json(result)
 
         # ── API: specific agent health ──
@@ -889,7 +896,12 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
         # ── API: list agents ──
         elif path == "/api/agents/list":
             tokens = load_tokens()
-            self.send_json(sorted(set(tokens.values())))
+            names = sorted(set(tokens.values()))
+            type_filter = params.get("type", [None])[0]
+            if type_filter:
+                profiles = load_agent_profiles()
+                names = [n for n in names if profiles.get(n, {}).get("type", "ai") == type_filter]
+            self.send_json(names)
 
         # ── API: channel order preference ──
         elif path == "/api/preferences/channel-order":

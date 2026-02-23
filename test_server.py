@@ -4734,3 +4734,54 @@ class TestGroupMentions:
         assert s == 200
         ch = next(c for c in data["channels"] if c["channel"] == "grp-both")
         assert ch["unread_count"] == 1
+
+
+class TestTypeFilter:
+    """Tests for ?type= filter on agent endpoints."""
+
+    def test_agents_filter_human(self, server_info, second_agent):
+        """GET /api/agents?type=human returns only human agents."""
+        url, token, name = server_info
+        _, name2 = second_agent
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "human"}
+        profiles[name2] = {"type": "ai"}
+        _server_module.save_agent_profiles(profiles)
+        s, data = _raw_request(url, token, "GET", "/api/agents?type=human")
+        assert s == 200
+        assert name in data
+        assert name2 not in data
+
+    def test_agents_filter_ai(self, server_info, second_agent):
+        """GET /api/agents?type=ai returns only AI agents."""
+        url, token, name = server_info
+        _, name2 = second_agent
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "human"}
+        profiles[name2] = {"type": "ai"}
+        _server_module.save_agent_profiles(profiles)
+        s, data = _raw_request(url, token, "GET", "/api/agents?type=ai")
+        assert s == 200
+        assert name not in data
+        assert name2 in data
+
+    def test_agents_no_filter_returns_all(self, server_info, second_agent):
+        """GET /api/agents without type filter returns all agents."""
+        url, token, name = server_info
+        _, name2 = second_agent
+        s, data = _raw_request(url, token, "GET", "/api/agents")
+        assert s == 200
+        assert name in data
+
+    def test_agents_list_filter_human(self, server_info, second_agent):
+        """GET /api/agents/list?type=human returns only human names."""
+        url, token, name = server_info
+        _, name2 = second_agent
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "human"}
+        profiles[name2] = {"type": "ai"}
+        _server_module.save_agent_profiles(profiles)
+        s, data = _raw_request(url, token, "GET", "/api/agents/list?type=human")
+        assert s == 200
+        assert name in data
+        assert name2 not in data
