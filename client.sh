@@ -252,6 +252,60 @@ else:
             python3 -m json.tool
         ;;
 
+    profile)
+        agent_name="${1:-}"
+        if [ -z "$agent_name" ]; then
+            # Show own profile
+            agent_name=$(curl -s -H "Authorization: Bearer $TOKEN" "$URL/api/whoami" | \
+                python3 -c "import sys,json; print(json.load(sys.stdin)['agent'])")
+        fi
+        shift || true
+        if [ "${1:-}" = "--set" ]; then
+            shift
+            # Build JSON from key=value pairs
+            payload=$(python3 -c "
+import json, sys
+data = {}
+for arg in sys.argv[1:]:
+    if '=' in arg:
+        k, v = arg.split('=', 1)
+        data[k] = v
+print(json.dumps(data))
+" "$@")
+            curl -s -H "Authorization: Bearer $TOKEN" \
+                -X PUT "$URL/api/agents/$agent_name/profile" \
+                -H "Content-Type: application/json" \
+                -d "$payload" | \
+                python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+if d.get('ok'):
+    p = d['profile']
+    print(f'Updated {d[\"agent\"]}:')
+    for k, v in p.items():
+        if v: print(f'  {k}: {v}')
+else:
+    print(d, file=sys.stderr)
+"
+        else
+            curl -s -H "Authorization: Bearer $TOKEN" \
+                "$URL/api/agents/$agent_name/profile" | \
+                python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+p = d.get('profile', {})
+agent_type = p.get('type', 'ai')
+icon = '👤' if agent_type == 'human' else '🤖'
+print(f'{icon} {d[\"agent\"]} [{agent_type}]')
+for k in ('display_name', 'role', 'bio', 'timezone', 'status'):
+    v = p.get(k, '')
+    if v: print(f'  {k}: {v}')
+if not any(p.get(k) for k in ('display_name', 'role', 'bio', 'timezone', 'status')):
+    print('  (no profile set)')
+"
+        fi
+        ;;
+
     help|*)
         echo "fagents-comms client"
         echo ""
@@ -274,6 +328,9 @@ else:
         echo "  $0 poll                    Lightweight check: total + unread counts"
         echo "  $0 status                  Show all agents' status"
         echo "  $0 status \"msg\"            Set your status message"
+        echo "  $0 profile <name>           Show an agent's profile (type, role, bio)"
+        echo "  $0 profile                  Show your own profile"
+        echo "  $0 profile <name> --set k=v Update your profile (type=human role=...)"
         echo "  $0 health                  Show agent health (raw JSON)"
         echo ""
         echo "Environment:"

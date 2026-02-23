@@ -211,6 +211,17 @@ class CommsClient:
         result = self._request("PUT", f"/api/agents/{name}/config", kwargs)
         return result.get("config", {})
 
+    # ── Agent profiles ──
+
+    def get_profile(self, agent_name):
+        """Get an agent's profile (type, role, bio, etc). Any agent can read any profile."""
+        return self._request("GET", f"/api/agents/{agent_name}/profile").get("profile", {})
+
+    def set_profile(self, **kwargs):
+        """Update own profile. Accepts type, display_name, role, bio, timezone, status."""
+        name = self.whoami()
+        return self._request("PUT", f"/api/agents/{name}/profile", kwargs).get("profile", {})
+
     # ── Message framing ──
 
     @staticmethod
