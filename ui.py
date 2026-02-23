@@ -528,14 +528,17 @@ async function loadAgents() {{
     container.innerHTML = '<div class="agent-empty">No agents registered</div>';
     return;
   }}
-  // Fetch configs + subscriptions for all agents in parallel
+  // Fetch configs + subscriptions + profiles for all agents in parallel
   const configs = {{}};
   const subs = {{}};
+  const profiles = {{}};
   await Promise.all(names.map(async name => {{
     try {{ const c = await api(`/api/agents/${{name}}/config`); configs[name] = c.config || {{}}; }}
     catch(e) {{ configs[name] = {{}}; }}
     try {{ const s = await api(`/api/agents/${{name}}/channels`); subs[name] = s.channels || []; }}
     catch(e) {{ subs[name] = []; }}
+    try {{ const p = await api(`/api/agents/${{name}}/profile`); profiles[name] = p.profile || {{}}; }}
+    catch(e) {{ profiles[name] = {{}}; }}
   }}));
   container.innerHTML = names.map(name => {{
     const h = health[name] || {{}};
@@ -567,12 +570,26 @@ async function loadAgents() {{
     const soul = h.soul_text || '';
     const memory = h.memory_text || '';
     const en = escHtml(name);
-    return `<div class="agent-card" id="card-${{en}}">
+    const prof = profiles[name] || {{}};
+    const agentType = prof.type || h.type || 'ai';
+    const isHuman = agentType === 'human';
+    const typeBadge = isHuman
+      ? '<span style="background:#1a2a3a;color:#3498db;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600">human</span>'
+      : '<span style="background:#1a3a2a;color:#2ecc71;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600">ai</span>';
+    const profileRole = escHtml(prof.role || '');
+    const profileBio = escHtml(prof.bio || '');
+    const profileStatus = escHtml(prof.status || '');
+    return `<div class="agent-card" id="card-${{en}}" style="${{isHuman ? 'border-color:#1a3a5a' : ''}}">
       <div class="agent-card-header">
-        <span class="agent-card-name">${{en}}</span>
+        <span class="agent-card-name">${{en}} ${{typeBadge}}</span>
         <span class="agent-card-status ${{statusCls}}" id="badge-${{en}}">${{statusTxt}}</span>
       </div>
-      <div id="health-${{en}}">
+      ${{isHuman ? `<div style="font-size:11px;margin:6px 0">
+        ${{profileRole ? `<div><span style="color:#484f58">Role</span> <span style="color:#c9d1d9">${{profileRole}}</span></div>` : ''}}
+        ${{profileBio ? `<div style="margin-top:2px;color:#8b949e">${{profileBio}}</div>` : ''}}
+        ${{profileStatus ? `<div style="margin-top:4px"><span style="color:#484f58">Status</span> <span style="color:#3498db">${{profileStatus}}</span></div>` : ''}}
+        ${{!profileRole && !profileBio ? '<div style="color:#484f58">No profile set — <button onclick="editProfile(\\'' + en + '\\')" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:11px;font-family:inherit">set up profile</button></div>' : ''}}
+      </div>` : `<div id="health-${{en}}">
       ${{hasHealth ? `<div style="display:flex;align-items:center;gap:8px;margin:6px 0">
         <div class="ctx-bar" style="flex:1;height:10px"><div class="ctx-fill ${{barCls}}" style="width:${{pct}}%" id="ctxFill-${{en}}"></div></div>
         <span style="color:#c9d1d9;font-size:12px;font-weight:600;min-width:70px;text-align:right" id="ctxLabel-${{en}}">${{pct}}% ${{barCls.replace('ctx-','').toUpperCase()}}</span>
@@ -584,7 +601,7 @@ async function loadAgents() {{
         <span><span style="color:#484f58">Tool</span> <span style="color:#c9d1d9" id="tool-${{en}}">${{escHtml(lastTool)}}</span></span>
         ${{host && host !== '—' ? `<span><span style="color:#484f58">Host</span> <span style="color:#c9d1d9">${{host}}</span></span>` : ''}}
       </div>` : `<div style="font-size:11px;color:#484f58;margin:6px 0">No health data</div>`}}
-      </div>
+      </div>`}}
       <div class="agent-card-section">
         <div class="agent-card-section-title"><span>SOUL</span></div>
         <div onclick="showModal('${{en}} — SOUL', agentData['${{en}}'].soul, agentData['${{en}}'].soul_diff)">${{preview(soul, 6)}}</div>
@@ -611,6 +628,11 @@ async function loadAgents() {{
         </div>
         <button onclick="editConfig('${{en}}')" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:10px;font-family:inherit;margin-top:4px">Edit config</button>
         <div id="cfgEditor-${{en}}" style="display:none"></div>
+      </div>
+      <div class="agent-card-section">
+        <div class="agent-card-section-title"><span>Profile</span></div>
+        <button onclick="editProfile('${{en}}')" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:10px;font-family:inherit">Edit profile</button>
+        <div id="profileEditor-${{en}}" style="display:none"></div>
       </div>
     </div>`;
   }}).join('');
@@ -727,6 +749,56 @@ async function saveSubs(name) {{
           : '<span style="color:#484f58">none</span>';
       }}
     }} else {{ msg.className = 'config-msg err'; msg.textContent = j.error || 'Failed'; }}
+  }} catch(e) {{ msg.className = 'config-msg err'; msg.textContent = e.message; }}
+}}
+
+async function editProfile(name) {{
+  const ed = document.getElementById('profileEditor-' + name);
+  if (!ed) return;
+  if (ed.style.display === 'block') {{ ed.style.display = 'none'; return; }}
+  ed.style.display = 'block';
+  const data = await api(`/api/agents/${{name}}/profile`);
+  const p = data.profile || {{}};
+  ed.innerHTML = `<div class="config-form" style="margin-top:8px">
+    <div class="config-field"><label>type</label>
+      <select id="prof-${{name}}-type">
+        <option value="ai" ${{p.type === 'ai' ? 'selected' : ''}}>ai</option>
+        <option value="human" ${{p.type === 'human' ? 'selected' : ''}}>human</option>
+      </select></div>
+    <div class="config-field"><label>display_name</label>
+      <input type="text" id="prof-${{name}}-display_name" value="${{escHtml(p.display_name || '')}}" maxlength="50"></div>
+    <div class="config-field"><label>role</label>
+      <input type="text" id="prof-${{name}}-role" value="${{escHtml(p.role || '')}}" maxlength="100"></div>
+    <div class="config-field"><label>bio</label>
+      <textarea id="prof-${{name}}-bio" rows="3" maxlength="500" style="background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:6px 8px;color:#c9d1d9;font-family:inherit;font-size:13px;resize:vertical">${{escHtml(p.bio || '')}}</textarea></div>
+    <div class="config-field"><label>status</label>
+      <input type="text" id="prof-${{name}}-status" value="${{escHtml(p.status || '')}}" maxlength="200" placeholder="e.g. Available, Back at 9am"></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="config-save" onclick="saveProfile('${{name}}')">Save</button>
+      <span class="config-msg" id="profMsg-${{name}}"></span>
+    </div>
+  </div>`;
+}}
+
+async function saveProfile(name) {{
+  const msg = document.getElementById('profMsg-' + name);
+  msg.textContent = '';
+  try {{
+    const data = {{
+      type: document.getElementById('prof-' + name + '-type').value,
+      display_name: document.getElementById('prof-' + name + '-display_name').value,
+      role: document.getElementById('prof-' + name + '-role').value,
+      bio: document.getElementById('prof-' + name + '-bio').value,
+      status: document.getElementById('prof-' + name + '-status').value,
+    }};
+    const r = await fetch(`/api/agents/${{name}}/profile`, {{
+      method: 'PUT',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify(data)
+    }});
+    const j = await r.json();
+    if (j.ok) {{ msg.className = 'config-msg ok'; msg.textContent = 'Saved'; setTimeout(() => location.reload(), 500); }}
+    else {{ msg.className = 'config-msg err'; msg.textContent = 'Failed (can only edit own profile)'; }}
   }} catch(e) {{ msg.className = 'config-msg err'; msg.textContent = e.message; }}
 }}
 
