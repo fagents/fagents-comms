@@ -180,13 +180,26 @@ def list_accessible_channels(agent_name):
     return [c for c in list_channels() if agent_can_access(c["name"], agent_name)]
 
 
-def filter_mentions(messages, agent_name):
-    """Filter messages to those mentioning or replying to agent_name."""
+def filter_mentions(messages, agent_name, agent_type=None):
+    """Filter messages to those mentioning or replying to agent_name.
+
+    Also matches group mentions: @humans (for human agents), @ais (for AI agents).
+    If agent_type is None, looks it up from profiles.
+    """
+    if agent_type is None:
+        profile = get_agent_profile(agent_name)
+        agent_type = profile.get("type", "ai")
     mention = f"@{agent_name}"
     reply_prefix = f"> @{agent_name}:"
-    return [m for m in messages
-            if mention in m.get("message", "")
-            or m.get("message", "").startswith(reply_prefix)]
+    group_mention = "@humans" if agent_type == "human" else "@ais"
+
+    def matches(m):
+        text = m.get("message", "")
+        return (mention in text
+                or text.startswith(reply_prefix)
+                or group_mention in text)
+
+    return [m for m in messages if matches(m)]
 
 
 # ── Agent channel subscriptions ────────────────────────────────────

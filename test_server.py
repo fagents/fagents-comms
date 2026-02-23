@@ -4649,3 +4649,88 @@ class TestAgentAvailability:
         assert s == 200
         agent = next(a for a in data["agents"] if a["name"] == name)
         assert agent["availability"] == "unknown"
+
+
+class TestGroupMentions:
+    """Tests for @humans/@ais group mentions (cooperation: cross-type requests)."""
+
+    def test_humans_mention_matches_human_agent(self, server_info, second_agent):
+        """@humans in message triggers mention for human-type agent."""
+        url, token, name = server_info
+        token2, _ = second_agent
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "human"}
+        _server_module.save_agent_profiles(profiles)
+        _raw_request(url, token, "POST", "/api/channels", {"name": "grp-hum"})
+        _raw_request(url, token, "PUT", "/api/channels/grp-hum/read", {})
+        _raw_request(url, token2, "POST", "/api/channels/grp-hum/messages",
+                     {"message": "hey @humans please review this PR"})
+        s, data = _raw_request(url, token, "GET", "/api/unread?mentions=1")
+        assert s == 200
+        ch = next(c for c in data["channels"] if c["channel"] == "grp-hum")
+        assert ch["unread_count"] == 1
+        assert "@humans" in ch["messages"][0]["message"]
+
+    def test_humans_mention_does_not_match_ai(self, server_info, second_agent):
+        """@humans does NOT trigger for AI-type agent."""
+        url, token, name = server_info
+        token2, _ = second_agent
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "ai"}
+        _server_module.save_agent_profiles(profiles)
+        _raw_request(url, token, "POST", "/api/channels", {"name": "grp-noai"})
+        _raw_request(url, token, "PUT", "/api/channels/grp-noai/read", {})
+        _raw_request(url, token2, "POST", "/api/channels/grp-noai/messages",
+                     {"message": "hey @humans please review"})
+        s, data = _raw_request(url, token, "GET", "/api/unread?mentions=1")
+        assert s == 200
+        matching = [c for c in data["channels"] if c["channel"] == "grp-noai"]
+        assert not matching  # AI should not see @humans as a mention
+
+    def test_ais_mention_matches_ai_agent(self, server_info, second_agent):
+        """@ais in message triggers mention for AI-type agent."""
+        url, token, name = server_info
+        token2, _ = second_agent
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "ai"}
+        _server_module.save_agent_profiles(profiles)
+        _raw_request(url, token, "POST", "/api/channels", {"name": "grp-ai"})
+        _raw_request(url, token, "PUT", "/api/channels/grp-ai/read", {})
+        _raw_request(url, token2, "POST", "/api/channels/grp-ai/messages",
+                     {"message": "@ais pick up this pattern for future work"})
+        s, data = _raw_request(url, token, "GET", "/api/unread?mentions=1")
+        assert s == 200
+        ch = next(c for c in data["channels"] if c["channel"] == "grp-ai")
+        assert ch["unread_count"] == 1
+
+    def test_ais_mention_does_not_match_human(self, server_info, second_agent):
+        """@ais does NOT trigger for human-type agent."""
+        url, token, name = server_info
+        token2, _ = second_agent
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "human"}
+        _server_module.save_agent_profiles(profiles)
+        _raw_request(url, token, "POST", "/api/channels", {"name": "grp-nohum"})
+        _raw_request(url, token, "PUT", "/api/channels/grp-nohum/read", {})
+        _raw_request(url, token2, "POST", "/api/channels/grp-nohum/messages",
+                     {"message": "@ais update your memory files"})
+        s, data = _raw_request(url, token, "GET", "/api/unread?mentions=1")
+        assert s == 200
+        matching = [c for c in data["channels"] if c["channel"] == "grp-nohum"]
+        assert not matching
+
+    def test_direct_mention_still_works_with_group(self, server_info, second_agent):
+        """Direct @name mention still works alongside group mentions."""
+        url, token, name = server_info
+        token2, _ = second_agent
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "human"}
+        _server_module.save_agent_profiles(profiles)
+        _raw_request(url, token, "POST", "/api/channels", {"name": "grp-both"})
+        _raw_request(url, token, "PUT", "/api/channels/grp-both/read", {})
+        _raw_request(url, token2, "POST", "/api/channels/grp-both/messages",
+                     {"message": f"@{name} check this specifically"})
+        s, data = _raw_request(url, token, "GET", "/api/unread?mentions=1")
+        assert s == 200
+        ch = next(c for c in data["channels"] if c["channel"] == "grp-both")
+        assert ch["unread_count"] == 1
