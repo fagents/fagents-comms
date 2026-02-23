@@ -394,11 +394,16 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
         return f"comms_token_{port}"
 
     def get_token(self):
-        """Extract raw token from Authorization header or cookie."""
+        """Extract raw token from Authorization header, query param, or cookie."""
         # Bearer token
         auth = self.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
             return auth[7:].strip()
+        # Query param (explicit intent — wins over stale cookies)
+        parsed = urllib.parse.urlparse(self.path)
+        params = urllib.parse.parse_qs(parsed.query)
+        if "token" in params:
+            return params["token"][0]
         # Cookie (port-specific name to avoid collision across servers)
         cookie_name = self._cookie_name()
         cookie = self.headers.get("Cookie", "")
@@ -406,11 +411,6 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             part = part.strip()
             if part.startswith(f"{cookie_name}="):
                 return part.split("=", 1)[1]
-        # Query param (for browser initial auth)
-        parsed = urllib.parse.urlparse(self.path)
-        params = urllib.parse.parse_qs(parsed.query)
-        if "token" in params:
-            return params["token"][0]
         return None
 
     def set_token_cookie(self, raw_token):
