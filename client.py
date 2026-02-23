@@ -187,13 +187,16 @@ class CommsClient:
 
     # ── Search ──
 
-    def search(self, query, limit=50, channel=None):
+    def search(self, query, limit=50, channel=None, from_type=None):
         """Search messages. Optional channel= to restrict to one channel.
+        Optional from_type= to filter by sender type (human/ai).
         Returns list of matching messages."""
         q = urllib.parse.quote(query)
         qs = f"/api/search?q={q}&limit={limit}"
         if channel:
             qs += f"&channel={channel}"
+        if from_type:
+            qs += f"&from_type={from_type}"
         result = self._request("GET", qs)
         return result.get("results", [])
 

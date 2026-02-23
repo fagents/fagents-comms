@@ -4846,3 +4846,58 @@ class TestTypeAwareACL:
         s2, _ = _raw_request(url, token2, "GET", "/api/channels/mixed-acl/messages")
         assert s1 == 200
         assert s2 == 200
+
+
+class TestTypeAwareSearch:
+    """Tests for from_type filter on search endpoint."""
+
+    def test_search_from_type_human(self, server_info, second_agent):
+        """Search with from_type=human returns only messages from human agents."""
+        url, token, name = server_info
+        token2, name2 = second_agent
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "human"}
+        profiles[name2] = {"type": "ai"}
+        _server_module.save_agent_profiles(profiles)
+        _raw_request(url, token, "POST", "/api/channels", {"name": "srch-type"})
+        _raw_request(url, token, "POST", "/api/channels/srch-type/messages",
+                     {"message": "human says qxdeploy77 looks good"})
+        _raw_request(url, token2, "POST", "/api/channels/srch-type/messages",
+                     {"message": "ai says qxdeploy77 complete"})
+        s, data = _raw_request(url, token, "GET",
+                               "/api/search?q=qxdeploy77&from_type=human")
+        assert s == 200
+        assert data["count"] == 1
+        assert data["results"][0]["sender"] == name
+
+    def test_search_from_type_ai(self, server_info, second_agent):
+        """Search with from_type=ai returns only messages from AI agents."""
+        url, token, name = server_info
+        token2, name2 = second_agent
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "human"}
+        profiles[name2] = {"type": "ai"}
+        _server_module.save_agent_profiles(profiles)
+        _raw_request(url, token, "POST", "/api/channels", {"name": "srch-type2"})
+        _raw_request(url, token, "POST", "/api/channels/srch-type2/messages",
+                     {"message": "human qzreview88 needed"})
+        _raw_request(url, token2, "POST", "/api/channels/srch-type2/messages",
+                     {"message": "ai qzreview88 complete"})
+        s, data = _raw_request(url, token, "GET",
+                               "/api/search?q=qzreview88&from_type=ai")
+        assert s == 200
+        assert data["count"] == 1
+        assert data["results"][0]["sender"] == name2
+
+    def test_search_no_from_type_returns_all(self, server_info, second_agent):
+        """Search without from_type returns messages from all types."""
+        url, token, name = server_info
+        token2, _ = second_agent
+        _raw_request(url, token, "POST", "/api/channels", {"name": "srch-all"})
+        _raw_request(url, token, "POST", "/api/channels/srch-all/messages",
+                     {"message": "xyzzyword from first"})
+        _raw_request(url, token2, "POST", "/api/channels/srch-all/messages",
+                     {"message": "xyzzyword from second"})
+        s, data = _raw_request(url, token, "GET", "/api/search?q=xyzzyword")
+        assert s == 200
+        assert data["count"] == 2

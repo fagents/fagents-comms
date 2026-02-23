@@ -993,6 +993,13 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             limit = min(limit, 200)
             q_lower = q.lower()
             channel_filter = params.get("channel", [None])[0]
+            from_type = params.get("from_type", [None])[0]
+            # Precompute sender types if filtering by type
+            sender_types = {}
+            if from_type:
+                profiles = load_agent_profiles()
+                sender_types = {n: profiles.get(n, {}).get("type", "ai")
+                                for n in set(load_tokens().values())}
             results = []
             channels = list_accessible_channels(agent)
             if channel_filter:
@@ -1001,6 +1008,10 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
                 msgs, _ = read_channel(ch["name"])
                 for m in msgs:
                     if q_lower in m.get("message", "").lower():
+                        if from_type:
+                            sender = m.get("sender", "")
+                            if sender_types.get(sender, "ai") != from_type:
+                                continue
                         results.append({**m, "channel": ch["name"]})
                         if len(results) >= limit:
                             break

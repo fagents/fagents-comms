@@ -161,8 +161,9 @@ else:
         extra_params=""
         while [ $# -gt 0 ]; do
             case "$1" in
-                --channel) extra_params="${extra_params}&channel=${2:-}"; shift ;;
-                --limit)   extra_params="${extra_params}&limit=${2:-50}"; shift ;;
+                --channel)   extra_params="${extra_params}&channel=${2:-}"; shift ;;
+                --limit)     extra_params="${extra_params}&limit=${2:-50}"; shift ;;
+                --from-type) extra_params="${extra_params}&from_type=${2:-}"; shift ;;
             esac
             shift || true
         done
