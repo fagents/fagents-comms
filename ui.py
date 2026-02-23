@@ -135,13 +135,17 @@ def _split_quotes(text):
     return quote_html, body_lines
 
 
-def render_messages_html(messages):
+def render_messages_html(messages, agent_profiles=None):
+    profiles = agent_profiles or {}
     parts = []
     for msg in messages:
         sender = msg["sender"]
         ts = msg["ts"]
         text = msg["message"]
         colors = _color_for_sender(sender)
+        prof = profiles.get(sender, {})
+        sender_type = prof.get("type", "ai")
+        type_indicator = ' <span style="font-size:9px" title="human">&#128100;</span>' if sender_type == "human" else ""
 
         quote_html, body_lines = _split_quotes(text)
         body = _render_markdown("\n".join(body_lines))
@@ -155,7 +159,7 @@ def render_messages_html(messages):
             f'border-left:3px solid {colors["border"]}">'
             f'<div class="meta">'
             f'<span class="sender" style="color:{colors["name"]}">'
-            f'{html.escape(sender)}</span>'
+            f'{html.escape(sender)}{type_indicator}</span>'
             f'<span class="time">{html.escape(ts)}</span>'
             f'</div>'
             f'<div class="text">{quote_html}{body}</div>'
@@ -904,10 +908,11 @@ def page_html(channel_name, messages, channels_list, agent_names,
         total_count: Total message count in channel (may differ from len(messages) due to truncation)
         agent_profiles: {agent_name: profile_dict} for type-aware rendering
     """
-    msg_html = render_messages_html(messages)
+    msg_html = render_messages_html(messages, agent_profiles)
     agent_html = render_compact_agent_panels_html(agent_names, agent_health, agent_profiles)
     activity_html = render_activity_html(agent_activity)
     count = total_count if total_count is not None else len(messages)
+    agent_types_json = json.dumps({n: (agent_profiles or {}).get(n, {}).get("type", "ai") for n in agent_names})
 
     # Channel list for left sidebar
     ch_items = []
@@ -1174,7 +1179,7 @@ def page_html(channel_name, messages, channels_list, agent_names,
     </div>
   </div>
 </div>
-<script>const CONFIG = {{channel: '{channel_name}', lastCount: {count}, agents: {json.dumps(agent_names)}, me: '{sender_label}'}};</script>
+<script>const CONFIG = {{channel: '{channel_name}', lastCount: {count}, agents: {json.dumps(agent_names)}, me: '{sender_label}', agentTypes: {agent_types_json} }};</script>
 <script src="/static/app.js"></script>
 </body>
 </html>"""
