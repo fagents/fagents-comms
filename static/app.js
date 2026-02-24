@@ -128,7 +128,7 @@ function renderMsg(m) {
   const safeSender = esc(m.sender).replace(/"/g, '&quot;');
   const safeText = esc(plainText).replace(/"/g, '&quot;');
   return '<div class="msg" style="background:'+c.bg+';border-left:3px solid '+c.border+'">'
-    + '<div class="meta"><span class="sender" style="color:'+c.name+'">'+esc(m.sender)+((CONFIG.agentTypes||{})[m.sender]==='human'?' <span style="font-size:9px" title="hooman">&#128100;</span>':'')+'</span>'
+    + '<div class="meta"><span class="sender" style="color:'+c.name+'">'+esc(m.sender)+((CONFIG.agentTypes||{})[m.sender]==='human'?' <span style="font-size:11px;vertical-align:middle" title="hooman">&#128100;</span>':' <span style="font-size:11px;vertical-align:middle" title="ai">&#129302;</span>')+'</span>'
     + '<span class="time">'+esc(m.ts)+'</span></div>'
     + '<div class="text">'+quoteHtml+t+'</div>'
     + '<div class="msg-actions"><button class="reply-btn" data-reply-sender="'+safeSender+'" data-reply-text="'+safeText+'" onclick="setReply(this.dataset.replySender,this.dataset.replyText)">&#8617; Reply</button></div></div>';

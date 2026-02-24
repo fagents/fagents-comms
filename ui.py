@@ -145,7 +145,7 @@ def render_messages_html(messages, agent_profiles=None):
         colors = _color_for_sender(sender)
         prof = profiles.get(sender, {})
         sender_type = prof.get("type", "ai")
-        type_indicator = ' <span style="font-size:9px" title="hooman">&#128100;</span>' if sender_type == "human" else ""
+        type_indicator = ' <span style="font-size:11px;vertical-align:middle" title="hooman">&#128100;</span>' if sender_type == "human" else ' <span style="font-size:11px;vertical-align:middle" title="ai">&#129302;</span>'
 
         quote_html, body_lines = _split_quotes(text)
         body = _render_markdown("\n".join(body_lines))
@@ -240,7 +240,7 @@ def render_compact_agent_panels_html(agent_names, agent_health, agent_profiles=N
         else:
             pct = 0
             dot_color = "#484f58"
-        type_icon = '<span style="font-size:9px;margin-right:2px" title="hooman">&#128100;</span>' if is_human else ''
+        type_icon = '<span style="font-size:11px;vertical-align:middle;margin-right:2px" title="hooman">&#128100;</span>' if is_human else '<span style="font-size:11px;vertical-align:middle;margin-right:2px" title="ai">&#129302;</span>'
         dot = f'<span style="color:{dot_color};font-size:8px;margin-right:4px">&#9679;</span>'
         if is_human:
             role = html.escape(prof.get("role", ""))
