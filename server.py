@@ -245,8 +245,20 @@ def save_agent_config(config):
 # ── Agent profiles ─────────────────────────────────────────────────────
 
 AGENT_TYPES = ("human", "ai")
-AGENT_PROFILE_FIELDS = {"type", "display_name", "role", "bio", "timezone", "status"}
-AGENT_PROFILE_MAX_LENGTHS = {"display_name": 50, "role": 100, "bio": 500, "timezone": 50, "status": 200}
+AGENT_PROFILE_COMMON_FIELDS = {"type", "display_name"}
+AGENT_PROFILE_AI_FIELDS = {"role", "bio", "timezone", "status"}
+AGENT_PROFILE_HUMAN_FIELDS = {"soul"}
+AGENT_PROFILE_MAX_LENGTHS = {
+    "display_name": 50, "role": 100, "bio": 500,
+    "timezone": 50, "status": 200, "soul": 5000,
+}
+
+
+def get_agent_profile_fields(agent_type):
+    """Return the valid profile fields for an agent type."""
+    if agent_type == "human":
+        return AGENT_PROFILE_COMMON_FIELDS | AGENT_PROFILE_HUMAN_FIELDS
+    return AGENT_PROFILE_COMMON_FIELDS | AGENT_PROFILE_AI_FIELDS
 
 
 def load_agent_profiles():
@@ -259,17 +271,21 @@ def save_agent_profiles(profiles):
 
 
 def get_agent_profile(agent_name):
-    """Get profile for an agent, with defaults."""
+    """Get profile for an agent, with type-appropriate defaults.
+
+    Hoomans: {type, display_name, soul}
+    AIs: {type, display_name, role, bio, timezone, status}
+    """
     profiles = load_agent_profiles()
     profile = profiles.get(agent_name, {})
-    return {
-        "type": profile.get("type", "ai"),
-        "display_name": profile.get("display_name", ""),
-        "role": profile.get("role", ""),
-        "bio": profile.get("bio", ""),
-        "timezone": profile.get("timezone", ""),
-        "status": profile.get("status", ""),
-    }
+    agent_type = profile.get("type", "ai")
+    result = {"type": agent_type, "display_name": profile.get("display_name", "")}
+    if agent_type == "human":
+        result["soul"] = profile.get("soul", "")
+    else:
+        for field in AGENT_PROFILE_AI_FIELDS:
+            result[field] = profile.get(field, "")
+    return result
 
 
 
@@ -1284,15 +1300,19 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
                 return
             profiles = load_agent_profiles()
             existing = profiles.get(agent_name, {})
-            # Validate and merge fields
-            for key in AGENT_PROFILE_FIELDS:
+            # Determine target type (new type if changing, else current)
+            target_type = data.get("type", existing.get("type", "ai"))
+            if "type" in data and data["type"] not in AGENT_TYPES:
+                self.send_text(f"type must be one of: {', '.join(AGENT_TYPES)}", 400)
+                return
+            valid_fields = get_agent_profile_fields(target_type)
+            # Validate and merge type-appropriate fields
+            for key in valid_fields:
                 if key not in data:
                     continue
                 val = data[key]
                 if key == "type":
-                    if val not in AGENT_TYPES:
-                        self.send_text(f"type must be one of: {', '.join(AGENT_TYPES)}", 400)
-                        return
+                    pass  # already validated above
                 else:
                     if not isinstance(val, str):
                         self.send_text(f"{key} must be a string", 400)
@@ -1302,6 +1322,10 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
                         self.send_text(f"{key} too long (max {max_len})", 400)
                         return
                 existing[key] = val
+            # Strip fields that don't belong to this type
+            stale = (AGENT_PROFILE_AI_FIELDS | AGENT_PROFILE_HUMAN_FIELDS) - valid_fields
+            for key in stale:
+                existing.pop(key, None)
             profiles[agent_name] = existing
             save_agent_profiles(profiles)
             profile = get_agent_profile(agent_name)

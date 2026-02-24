@@ -4484,15 +4484,19 @@ class TestAgentProfiles:
         """PUT profile with type=human sets the agent as human."""
         url, token, name = server_info
         s, data = _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
-                               {"type": "human", "role": "Team lead"})
+                               {"type": "human", "soul": "# Team lead\n\nI run the team"})
         assert s == 200
         assert data["ok"] is True
         assert data["profile"]["type"] == "human"
-        assert data["profile"]["role"] == "Team lead"
+        assert data["profile"]["soul"] == "# Team lead\n\nI run the team"
+        # Structured AI fields not returned for hoomans
+        assert "role" not in data["profile"]
+        assert "bio" not in data["profile"]
 
     def test_get_profile_persists(self, server_info):
         """Profile changes persist across reads."""
         url, token, name = server_info
+        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile", {"type": "ai"})
         _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
                      {"bio": "I handle deployments", "display_name": "Juho"})
         s, data = _raw_request(url, token, "GET", f"/api/agents/{name}/profile")
@@ -4503,6 +4507,7 @@ class TestAgentProfiles:
     def test_partial_update_preserves_fields(self, server_info):
         """PUT with partial fields preserves existing fields."""
         url, token, name = server_info
+        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile", {"type": "ai"})
         _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
                      {"role": "Engineer", "bio": "Builds things"})
         # Now update only role
@@ -4522,6 +4527,7 @@ class TestAgentProfiles:
     def test_bio_too_long_rejected(self, server_info):
         """PUT with bio exceeding max length → 400."""
         url, token, name = server_info
+        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile", {"type": "ai"})
         s, data = _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
                                {"bio": "x" * 501})
         assert s == 400
@@ -4540,13 +4546,13 @@ class TestAgentProfiles:
         token2 = _server_module.add_agent("HumanUser")
         # Set their profile directly
         profiles = _server_module.load_agent_profiles()
-        profiles["HumanUser"] = {"type": "human", "role": "Designer", "bio": "Ask me about UX"}
+        profiles["HumanUser"] = {"type": "human", "soul": "# Designer\n\nAsk me about UX"}
         _server_module.save_agent_profiles(profiles)
         # First agent reads second agent's profile
         s, data = _raw_request(url, token, "GET", "/api/agents/HumanUser/profile")
         assert s == 200
         assert data["profile"]["type"] == "human"
-        assert data["profile"]["bio"] == "Ask me about UX"
+        assert data["profile"]["soul"] == "# Designer\n\nAsk me about UX"
 
     def test_agents_list_includes_type(self, server_info):
         """GET /api/agents includes type field from profiles."""
@@ -4570,6 +4576,79 @@ class TestAgentProfiles:
         # Verify profile was set
         profile = _server_module.get_agent_profile("NewHuman")
         assert profile["type"] == "human"
+
+    def test_hooman_soul_save_and_retrieve(self, server_info):
+        """PUT soul on a hooman profile, verify it persists."""
+        url, token, name = server_info
+        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                     {"type": "human"})
+        s, data = _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                               {"soul": "# Me\n\n# About me\nI test things"})
+        assert s == 200
+        assert data["profile"]["soul"] == "# Me\n\n# About me\nI test things"
+        # Verify GET returns it
+        s, data = _raw_request(url, token, "GET", f"/api/agents/{name}/profile")
+        assert data["profile"]["soul"] == "# Me\n\n# About me\nI test things"
+
+    def test_hooman_profile_excludes_ai_fields(self, server_info):
+        """Hooman profile GET does not include AI-only fields."""
+        url, token, name = server_info
+        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                     {"type": "human"})
+        s, data = _raw_request(url, token, "GET", f"/api/agents/{name}/profile")
+        assert s == 200
+        for field in ("role", "bio", "timezone", "status"):
+            assert field not in data["profile"]
+
+    def test_ai_fields_ignored_for_hooman(self, server_info):
+        """PUT with AI-only fields on a hooman profile ignores them."""
+        url, token, name = server_info
+        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                     {"type": "human"})
+        s, data = _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                               {"role": "Engineer", "bio": "Builds things"})
+        assert s == 200
+        assert "role" not in data["profile"]
+        assert "bio" not in data["profile"]
+
+    def test_type_switch_to_human_strips_ai_fields(self, server_info):
+        """Switching from AI to hooman strips role/bio/timezone/status."""
+        url, token, name = server_info
+        # Set AI profile with role and bio
+        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                     {"type": "ai", "role": "Engineer", "bio": "Builds things"})
+        # Switch to human
+        s, data = _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                               {"type": "human", "soul": "# Hello"})
+        assert s == 200
+        assert data["profile"]["type"] == "human"
+        assert data["profile"]["soul"] == "# Hello"
+        assert "role" not in data["profile"]
+        # Verify stripped from storage too
+        profiles = _server_module.load_agent_profiles()
+        assert "role" not in profiles[name]
+        assert "bio" not in profiles[name]
+
+    def test_soul_too_long_rejected(self, server_info):
+        """PUT with soul exceeding max length → 400."""
+        url, token, name = server_info
+        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                     {"type": "human"})
+        s, data = _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                               {"soul": "x" * 5001})
+        assert s == 400
+
+    def test_ai_profile_excludes_soul(self, server_info):
+        """AI profile GET does not include soul field."""
+        url, token, name = server_info
+        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
+                     {"type": "ai"})
+        s, data = _raw_request(url, token, "GET", f"/api/agents/{name}/profile")
+        assert s == 200
+        assert "soul" not in data["profile"]
+        # But has AI fields
+        assert "role" in data["profile"]
+        assert "bio" in data["profile"]
 
 
 class TestGroupMentions:

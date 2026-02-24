@@ -243,9 +243,7 @@ def render_compact_agent_panels_html(agent_names, agent_health, agent_profiles=N
         type_icon = '<span style="font-size:11px;vertical-align:middle;margin-right:2px" title="hooman">&#128100;</span>' if is_human else '<span style="font-size:11px;vertical-align:middle;margin-right:2px" title="ai">&#129302;</span>'
         dot = f'<span style="color:{dot_color};font-size:8px;margin-right:4px">&#9679;</span>'
         if is_human:
-            role = html.escape(prof.get("role", ""))
-            status = html.escape(prof.get("status", ""))
-            detail = role or status or "hooman"
+            detail = "hooman"
             panels.append(
                 f'<div style="display:flex;align-items:center;gap:6px;padding:3px 8px;font-size:11px">'
                 f'<span style="flex:1;white-space:nowrap">{dot}{type_icon}{ename}</span>'
@@ -596,9 +594,6 @@ async function loadAgents() {{
     const typeBadge = isHuman
       ? '<span style="background:#1a2a3a;color:#3498db;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600">hooman</span>'
       : '<span style="background:#1a3a2a;color:#2ecc71;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600">ai</span>';
-    const profileRole = escHtml(prof.role || '');
-    const profileBio = escHtml(prof.bio || '');
-    const profileStatus = escHtml(prof.status || '');
     if (isHuman) return `<div class="agent-card" id="card-${{en}}" style="border-color:#1a3a5a">
       <div class="agent-card-header">
         <span class="agent-card-name">${{en}} ${{typeBadge}}</span>

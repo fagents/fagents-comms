@@ -298,11 +298,21 @@ p = d.get('profile', {})
 agent_type = p.get('type', 'ai')
 icon = '👤' if agent_type == 'human' else '🤖'
 print(f'{icon} {d[\"agent\"]} [{agent_type}]')
-for k in ('display_name', 'role', 'bio', 'timezone', 'status'):
-    v = p.get(k, '')
-    if v: print(f'  {k}: {v}')
-if not any(p.get(k) for k in ('display_name', 'role', 'bio', 'timezone', 'status')):
-    print('  (no profile set)')
+if p.get('display_name'):
+    print(f'  display_name: {p[\"display_name\"]}')
+if agent_type == 'human':
+    soul = p.get('soul', '')
+    if soul:
+        lines = soul.strip().split('\n')
+        print(f'  soul: {lines[0][:80]}' + (' ...' if len(lines) > 1 else ''))
+    else:
+        print('  (no soul set)')
+else:
+    for k in ('role', 'bio', 'timezone', 'status'):
+        v = p.get(k, '')
+        if v: print(f'  {k}: {v}')
+    if not any(p.get(k) for k in ('role', 'bio', 'timezone', 'status')):
+        print('  (no profile set)')
 "
         fi
         ;;
@@ -329,7 +339,7 @@ if not any(p.get(k) for k in ('display_name', 'role', 'bio', 'timezone', 'status
         echo "  $0 poll                    Lightweight check: total + unread counts"
         echo "  $0 status                  Show all agents' status"
         echo "  $0 status \"msg\"            Set your status message"
-        echo "  $0 profile <name>           Show an agent's profile (type, role, bio)"
+        echo "  $0 profile <name>           Show an agent's profile (type, soul/role/bio)"
         echo "  $0 profile                  Show your own profile"
         echo "  $0 profile <name> --set k=v Update your profile (type=human role=...)"
         echo "  $0 available                Show agent availability (timezone + online)"
