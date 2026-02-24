@@ -690,7 +690,7 @@ async function saveHoomanSoul(name) {{
   const text = document.getElementById('hoomanSoul-' + name).value;
   const resp = await fetch('/api/agents/' + name + '/profile', {{
     method: 'PUT', headers: {{'Authorization': 'Bearer ' + CONFIG.token, 'Content-Type': 'application/json'}},
-    body: JSON.stringify({{soul: text}})
+    body: JSON.stringify({{type: 'human', soul: text}})
   }});
   if (resp.ok) {{
     const el = document.getElementById('hoomanSoulStatus-' + name);
