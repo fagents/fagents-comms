@@ -658,11 +658,6 @@ async function loadAgents() {{
         <button onclick="editConfig('${{en}}')" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:10px;font-family:inherit;margin-top:4px">Edit config</button>
         <div id="cfgEditor-${{en}}" style="display:none"></div>
       </div>
-      <div class="agent-card-section">
-        <div class="agent-card-section-title"><span>Profile</span></div>
-        <button onclick="editProfile('${{en}}')" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:10px;font-family:inherit">Edit profile</button>
-        <div id="profileEditor-${{en}}" style="display:none"></div>
-      </div>
     </div>`;
   }}).join('');
 }}
@@ -790,47 +785,6 @@ async function saveSubs(name) {{
           : '<span style="color:#484f58">none</span>';
       }}
     }} else {{ msg.className = 'config-msg err'; msg.textContent = j.error || 'Failed'; }}
-  }} catch(e) {{ msg.className = 'config-msg err'; msg.textContent = e.message; }}
-}}
-
-async function editProfile(name) {{
-  const ed = document.getElementById('profileEditor-' + name);
-  if (!ed) return;
-  if (ed.style.display === 'block') {{ ed.style.display = 'none'; return; }}
-  ed.style.display = 'block';
-  const data = await api(`/api/agents/${{name}}/profile`);
-  const p = data.profile || {{}};
-  ed.innerHTML = `<div class="config-form" style="margin-top:8px">
-    <div class="config-field"><label>type</label>
-      <select id="prof-${{name}}-type">
-        <option value="ai" ${{p.type === 'ai' ? 'selected' : ''}}>ai</option>
-        <option value="human" ${{p.type === 'human' ? 'selected' : ''}}>hooman</option>
-      </select></div>
-    <div class="config-field"><label>display_name</label>
-      <input type="text" id="prof-${{name}}-display_name" value="${{escHtml(p.display_name || '')}}" maxlength="50"></div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="config-save" onclick="saveProfile('${{name}}')">Save</button>
-      <span class="config-msg" id="profMsg-${{name}}"></span>
-    </div>
-  </div>`;
-}}
-
-async function saveProfile(name) {{
-  const msg = document.getElementById('profMsg-' + name);
-  msg.textContent = '';
-  try {{
-    const data = {{
-      type: document.getElementById('prof-' + name + '-type').value,
-      display_name: document.getElementById('prof-' + name + '-display_name').value,
-    }};
-    const r = await fetch(`/api/agents/${{name}}/profile`, {{
-      method: 'PUT',
-      headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify(data)
-    }});
-    const j = await r.json();
-    if (j.ok) {{ msg.className = 'config-msg ok'; msg.textContent = 'Saved'; setTimeout(() => location.reload(), 500); }}
-    else {{ msg.className = 'config-msg err'; msg.textContent = 'Failed (can only edit own profile)'; }}
   }} catch(e) {{ msg.className = 'config-msg err'; msg.textContent = e.message; }}
 }}
 
