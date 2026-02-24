@@ -307,12 +307,8 @@ if agent_type == 'human':
         print(f'  soul: {lines[0][:80]}' + (' ...' if len(lines) > 1 else ''))
     else:
         print('  (no soul set)')
-else:
-    for k in ('role', 'bio', 'timezone', 'status'):
-        v = p.get(k, '')
-        if v: print(f'  {k}: {v}')
-    if not any(p.get(k) for k in ('role', 'bio', 'timezone', 'status')):
-        print('  (no profile set)')
+elif not p.get('display_name'):
+    print('  (identity lives in SOUL.md)')
 "
         fi
         ;;
@@ -339,9 +335,9 @@ else:
         echo "  $0 poll                    Lightweight check: total + unread counts"
         echo "  $0 status                  Show all agents' status"
         echo "  $0 status \"msg\"            Set your status message"
-        echo "  $0 profile <name>           Show an agent's profile (type, soul/role/bio)"
+        echo "  $0 profile <name>           Show an agent's profile (type, display_name, soul)"
         echo "  $0 profile                  Show your own profile"
-        echo "  $0 profile <name> --set k=v Update your profile (type=human role=...)"
+        echo "  $0 profile <name> --set k=v Update your profile (type=human display_name=...)"
         echo "  $0 available                Show agent availability (timezone + online)"
         echo "  $0 health                  Show agent health (raw JSON)"
         echo ""

@@ -4477,8 +4477,10 @@ class TestAgentProfiles:
         assert s == 200
         assert data["agent"] == name
         assert data["profile"]["type"] == "ai"
-        assert data["profile"]["bio"] == ""
-        assert data["profile"]["role"] == ""
+        assert data["profile"]["display_name"] == ""
+        # No legacy fields (role, bio, etc.)
+        assert "role" not in data["profile"]
+        assert "bio" not in data["profile"]
 
     def test_set_profile_type_human(self, server_info):
         """PUT profile with type=human sets the agent as human."""
@@ -4496,26 +4498,23 @@ class TestAgentProfiles:
     def test_get_profile_persists(self, server_info):
         """Profile changes persist across reads."""
         url, token, name = server_info
-        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile", {"type": "ai"})
         _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
-                     {"bio": "I handle deployments", "display_name": "Juho"})
+                     {"type": "ai", "display_name": "Juho"})
         s, data = _raw_request(url, token, "GET", f"/api/agents/{name}/profile")
         assert s == 200
-        assert data["profile"]["bio"] == "I handle deployments"
         assert data["profile"]["display_name"] == "Juho"
 
     def test_partial_update_preserves_fields(self, server_info):
         """PUT with partial fields preserves existing fields."""
         url, token, name = server_info
-        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile", {"type": "ai"})
         _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
-                     {"role": "Engineer", "bio": "Builds things"})
-        # Now update only role
+                     {"type": "ai", "display_name": "TestBot Display"})
+        # Now update only type (to human), display_name should persist
         s, data = _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
-                               {"role": "Lead Engineer"})
+                               {"type": "human"})
         assert s == 200
-        assert data["profile"]["role"] == "Lead Engineer"
-        assert data["profile"]["bio"] == "Builds things"  # preserved
+        assert data["profile"]["display_name"] == "TestBot Display"  # preserved
+        assert data["profile"]["type"] == "human"
 
     def test_invalid_type_rejected(self, server_info):
         """PUT with invalid type → 400."""
@@ -4524,19 +4523,18 @@ class TestAgentProfiles:
                                {"type": "robot"})
         assert s == 400
 
-    def test_bio_too_long_rejected(self, server_info):
-        """PUT with bio exceeding max length → 400."""
+    def test_display_name_too_long_rejected(self, server_info):
+        """PUT with display_name exceeding max length → 400."""
         url, token, name = server_info
-        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile", {"type": "ai"})
         s, data = _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
-                               {"bio": "x" * 501})
+                               {"display_name": "x" * 51})
         assert s == 400
 
     def test_cannot_edit_other_agent_profile(self, server_info):
         """PUT to another agent's profile → 403."""
         url, token, name = server_info
         s, data = _raw_request(url, token, "PUT", "/api/agents/SomeOtherAgent/profile",
-                               {"bio": "hacked"})
+                               {"display_name": "hacked"})
         assert s == 403
 
     def test_any_agent_can_read_any_profile(self, server_info):
@@ -4600,34 +4598,31 @@ class TestAgentProfiles:
         for field in ("role", "bio", "timezone", "status"):
             assert field not in data["profile"]
 
-    def test_ai_fields_ignored_for_hooman(self, server_info):
-        """PUT with AI-only fields on a hooman profile ignores them."""
+    def test_legacy_fields_ignored(self, server_info):
+        """PUT with legacy fields (role/bio/etc) are silently ignored."""
         url, token, name = server_info
-        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
-                     {"type": "human"})
+        _raw_request(url, token, "PUT", f"/api/agents/{name}/profile", {"type": "ai"})
         s, data = _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
                                {"role": "Engineer", "bio": "Builds things"})
         assert s == 200
         assert "role" not in data["profile"]
         assert "bio" not in data["profile"]
 
-    def test_type_switch_to_human_strips_ai_fields(self, server_info):
-        """Switching from AI to hooman strips role/bio/timezone/status."""
+    def test_type_switch_strips_soul(self, server_info):
+        """Switching from hooman to AI strips soul field."""
         url, token, name = server_info
-        # Set AI profile with role and bio
+        # Set hooman profile with soul
         _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
-                     {"type": "ai", "role": "Engineer", "bio": "Builds things"})
-        # Switch to human
+                     {"type": "human", "soul": "# Hello"})
+        # Switch to AI
         s, data = _raw_request(url, token, "PUT", f"/api/agents/{name}/profile",
-                               {"type": "human", "soul": "# Hello"})
+                               {"type": "ai"})
         assert s == 200
-        assert data["profile"]["type"] == "human"
-        assert data["profile"]["soul"] == "# Hello"
-        assert "role" not in data["profile"]
+        assert data["profile"]["type"] == "ai"
+        assert "soul" not in data["profile"]
         # Verify stripped from storage too
         profiles = _server_module.load_agent_profiles()
-        assert "role" not in profiles[name]
-        assert "bio" not in profiles[name]
+        assert "soul" not in profiles[name]
 
     def test_soul_too_long_rejected(self, server_info):
         """PUT with soul exceeding max length → 400."""
@@ -4646,9 +4641,9 @@ class TestAgentProfiles:
         s, data = _raw_request(url, token, "GET", f"/api/agents/{name}/profile")
         assert s == 200
         assert "soul" not in data["profile"]
-        # But has AI fields
-        assert "role" in data["profile"]
-        assert "bio" in data["profile"]
+        # AI profile has type + display_name only
+        assert data["profile"]["type"] == "ai"
+        assert "display_name" in data["profile"]
 
 
 class TestGroupMentions:

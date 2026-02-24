@@ -217,11 +217,11 @@ class CommsClient:
     # ── Agent profiles ──
 
     def get_profile(self, agent_name):
-        """Get an agent's profile. Hoomans: {type, display_name, soul}. AIs: {type, display_name, role, bio, timezone, status}."""
+        """Get an agent's profile. All: {type, display_name}. Hoomans also get: {soul}."""
         return self._request("GET", f"/api/agents/{agent_name}/profile").get("profile", {})
 
     def set_profile(self, **kwargs):
-        """Update own profile. Fields are type-aware: hoomans accept soul, AIs accept role/bio/timezone/status."""
+        """Update own profile. All: type, display_name. Hoomans also: soul."""
         name = self.whoami()
         return self._request("PUT", f"/api/agents/{name}/profile", kwargs).get("profile", {})
 

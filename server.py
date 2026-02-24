@@ -245,24 +245,22 @@ def save_agent_config(config):
 # ── Agent profiles ─────────────────────────────────────────────────────
 
 AGENT_TYPES = ("human", "ai")
-AGENT_PROFILE_COMMON_FIELDS = {"type", "display_name"}
-AGENT_PROFILE_AI_FIELDS = {"role", "bio", "timezone", "status"}
+AGENT_PROFILE_FIELDS = {"type", "display_name"}
 AGENT_PROFILE_HUMAN_FIELDS = {"soul"}
-AGENT_PROFILE_MAX_LENGTHS = {
-    "display_name": 50, "role": 100, "bio": 500,
-    "timezone": 50, "status": 200, "soul": 5000,
-}
+AGENT_PROFILE_MAX_LENGTHS = {"display_name": 50, "soul": 5000}
+# Legacy fields stripped on profile update (from pre-simplification era)
+_LEGACY_PROFILE_FIELDS = {"role", "bio", "timezone", "status"}
 
 
 def get_agent_profile_fields(agent_type):
     """Return the valid profile fields for an agent type."""
     if agent_type == "human":
-        return AGENT_PROFILE_COMMON_FIELDS | AGENT_PROFILE_HUMAN_FIELDS
-    return AGENT_PROFILE_COMMON_FIELDS | AGENT_PROFILE_AI_FIELDS
+        return AGENT_PROFILE_FIELDS | AGENT_PROFILE_HUMAN_FIELDS
+    return AGENT_PROFILE_FIELDS
 
 
 def load_agent_profiles():
-    """Load agent_profiles.json → {agent_name: {type, display_name, role, bio, ...}}."""
+    """Load agent_profiles.json → {agent_name: {type, display_name, ...}}."""
     return _load_json(AGENT_PROFILES_FILE)
 
 
@@ -273,8 +271,9 @@ def save_agent_profiles(profiles):
 def get_agent_profile(agent_name):
     """Get profile for an agent, with type-appropriate defaults.
 
-    Hoomans: {type, display_name, soul}
-    AIs: {type, display_name, role, bio, timezone, status}
+    All agents: {type, display_name}
+    Hoomans also get: {soul}
+    AI identity lives in SOUL.md + MEMORY.md, not profile fields.
     """
     profiles = load_agent_profiles()
     profile = profiles.get(agent_name, {})
@@ -282,9 +281,6 @@ def get_agent_profile(agent_name):
     result = {"type": agent_type, "display_name": profile.get("display_name", "")}
     if agent_type == "human":
         result["soul"] = profile.get("soul", "")
-    else:
-        for field in AGENT_PROFILE_AI_FIELDS:
-            result[field] = profile.get(field, "")
     return result
 
 
@@ -1322,8 +1318,8 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
                         self.send_text(f"{key} too long (max {max_len})", 400)
                         return
                 existing[key] = val
-            # Strip fields that don't belong to this type
-            stale = (AGENT_PROFILE_AI_FIELDS | AGENT_PROFILE_HUMAN_FIELDS) - valid_fields
+            # Strip fields that don't belong to this type (+ legacy fields)
+            stale = (_LEGACY_PROFILE_FIELDS | AGENT_PROFILE_HUMAN_FIELDS) - valid_fields
             for key in stale:
                 existing.pop(key, None)
             profiles[agent_name] = existing

@@ -808,12 +808,6 @@ async function editProfile(name) {{
       </select></div>
     <div class="config-field"><label>display_name</label>
       <input type="text" id="prof-${{name}}-display_name" value="${{escHtml(p.display_name || '')}}" maxlength="50"></div>
-    <div class="config-field"><label>role</label>
-      <input type="text" id="prof-${{name}}-role" value="${{escHtml(p.role || '')}}" maxlength="100"></div>
-    <div class="config-field"><label>bio</label>
-      <textarea id="prof-${{name}}-bio" rows="3" maxlength="500" style="background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:6px 8px;color:#c9d1d9;font-family:inherit;font-size:13px;resize:vertical">${{escHtml(p.bio || '')}}</textarea></div>
-    <div class="config-field"><label>status</label>
-      <input type="text" id="prof-${{name}}-status" value="${{escHtml(p.status || '')}}" maxlength="200" placeholder="e.g. Available, Back at 9am"></div>
     <div style="display:flex;gap:8px;align-items:center">
       <button class="config-save" onclick="saveProfile('${{name}}')">Save</button>
       <span class="config-msg" id="profMsg-${{name}}"></span>
@@ -828,9 +822,6 @@ async function saveProfile(name) {{
     const data = {{
       type: document.getElementById('prof-' + name + '-type').value,
       display_name: document.getElementById('prof-' + name + '-display_name').value,
-      role: document.getElementById('prof-' + name + '-role').value,
-      bio: document.getElementById('prof-' + name + '-bio').value,
-      status: document.getElementById('prof-' + name + '-status').value,
     }};
     const r = await fetch(`/api/agents/${{name}}/profile`, {{
       method: 'PUT',
