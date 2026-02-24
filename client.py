@@ -225,14 +225,6 @@ class CommsClient:
         name = self.whoami()
         return self._request("PUT", f"/api/agents/{name}/profile", kwargs).get("profile", {})
 
-    # ── Availability ──
-
-    def available(self):
-        """Get all agents with availability info (timezone-aware for humans, health-based for AIs).
-        Returns list of agent availability dicts."""
-        result = self._request("GET", "/api/agents/available")
-        return result.get("agents", [])
-
     # ── Message framing ──
 
     @staticmethod

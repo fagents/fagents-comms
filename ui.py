@@ -145,7 +145,7 @@ def render_messages_html(messages, agent_profiles=None):
         colors = _color_for_sender(sender)
         prof = profiles.get(sender, {})
         sender_type = prof.get("type", "ai")
-        type_indicator = ' <span style="font-size:9px" title="human">&#128100;</span>' if sender_type == "human" else ""
+        type_indicator = ' <span style="font-size:9px" title="hooman">&#128100;</span>' if sender_type == "human" else ""
 
         quote_html, body_lines = _split_quotes(text)
         body = _render_markdown("\n".join(body_lines))
@@ -240,12 +240,12 @@ def render_compact_agent_panels_html(agent_names, agent_health, agent_profiles=N
         else:
             pct = 0
             dot_color = "#484f58"
-        type_icon = '<span style="font-size:9px;margin-right:2px" title="human">&#128100;</span>' if is_human else ''
+        type_icon = '<span style="font-size:9px;margin-right:2px" title="hooman">&#128100;</span>' if is_human else ''
         dot = f'<span style="color:{dot_color};font-size:8px;margin-right:4px">&#9679;</span>'
         if is_human:
             role = html.escape(prof.get("role", ""))
             status = html.escape(prof.get("status", ""))
-            detail = role or status or "human"
+            detail = role or status or "hooman"
             panels.append(
                 f'<div style="display:flex;align-items:center;gap:6px;padding:3px 8px;font-size:11px">'
                 f'<span style="flex:1;white-space:nowrap">{dot}{type_icon}{ename}</span>'
@@ -594,7 +594,7 @@ async function loadAgents() {{
     const agentType = prof.type || h.type || 'ai';
     const isHuman = agentType === 'human';
     const typeBadge = isHuman
-      ? '<span style="background:#1a2a3a;color:#3498db;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600">human</span>'
+      ? '<span style="background:#1a2a3a;color:#3498db;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600">hooman</span>'
       : '<span style="background:#1a3a2a;color:#2ecc71;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600">ai</span>';
     const profileRole = escHtml(prof.role || '');
     const profileBio = escHtml(prof.bio || '');
@@ -783,7 +783,7 @@ async function editProfile(name) {{
     <div class="config-field"><label>type</label>
       <select id="prof-${{name}}-type">
         <option value="ai" ${{p.type === 'ai' ? 'selected' : ''}}>ai</option>
-        <option value="human" ${{p.type === 'human' ? 'selected' : ''}}>human</option>
+        <option value="human" ${{p.type === 'human' ? 'selected' : ''}}>hooman</option>
       </select></div>
     <div class="config-field"><label>display_name</label>
       <input type="text" id="prof-${{name}}-display_name" value="${{escHtml(p.display_name || '')}}" maxlength="50"></div>

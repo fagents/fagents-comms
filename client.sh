@@ -307,24 +307,6 @@ if not any(p.get(k) for k in ('display_name', 'role', 'bio', 'timezone', 'status
         fi
         ;;
 
-    available)
-        curl -s -H "Authorization: Bearer $TOKEN" "$URL/api/agents/available" | \
-            python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-for a in data.get('agents', []):
-    icon = '\U0001f464' if a['type'] == 'human' else '\U0001f916'
-    avail = a.get('availability', '?')
-    name = a['name']
-    parts = [f'{icon} {name} [{avail}]']
-    if a.get('local_time'): parts.append(f'local: {a[\"local_time\"]}')
-    if a.get('role'): parts.append(a['role'])
-    if a.get('status'): parts.append(f'\"{a[\"status\"]}\"')
-    if a.get('context_pct') is not None and a['type'] == 'ai': parts.append(f'ctx:{a[\"context_pct\"]}%')
-    print('  '.join(parts))
-"
-        ;;
-
     help|*)
         echo "fagents-comms client"
         echo ""
