@@ -599,17 +599,31 @@ async function loadAgents() {{
     const profileRole = escHtml(prof.role || '');
     const profileBio = escHtml(prof.bio || '');
     const profileStatus = escHtml(prof.status || '');
-    return `<div class="agent-card" id="card-${{en}}" style="${{isHuman ? 'border-color:#1a3a5a' : ''}}">
+    if (isHuman) return `<div class="agent-card" id="card-${{en}}" style="border-color:#1a3a5a">
+      <div class="agent-card-header">
+        <span class="agent-card-name">${{en}} ${{typeBadge}}</span>
+      </div>
+      <div class="agent-card-section">
+        <div class="agent-card-section-title"><span>SOUL</span></div>
+        <textarea id="hoomanSoul-${{en}}" style="width:100%;min-height:120px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:8px;font-size:11px;font-family:inherit;resize:vertical">${{escHtml(prof.soul || '# ' + name + '\\n\\n# About me\\n\\n# Here\\'s how I can help')}}</textarea>
+        <button onclick="saveHoomanSoul('${{en}}')" style="background:#238636;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:11px;cursor:pointer;margin-top:4px">Save</button>
+        <span id="hoomanSoulStatus-${{en}}" style="font-size:10px;color:#3fb950;margin-left:8px;display:none">Saved</span>
+      </div>
+      <div class="agent-card-section">
+        <div class="agent-card-section-title"><span>Channels</span></div>
+        <div id="subsList-${{en}}" style="display:flex;gap:6px;flex-wrap:wrap;font-size:11px;margin-top:2px">
+          ${{(subs[name] || []).length ? (subs[name] || []).map(ch => `<span style="background:#21262d;color:#c9d1d9;padding:1px 6px;border-radius:3px">${{escHtml(ch)}}</span>`).join('') : '<span style="color:#484f58">none</span>'}}
+        </div>
+        <button onclick="editSubs('${{en}}')" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:10px;font-family:inherit;margin-top:4px">Edit channels</button>
+        <div id="subsEditor-${{en}}" style="display:none"></div>
+      </div>
+    </div>`;
+    return `<div class="agent-card" id="card-${{en}}">
       <div class="agent-card-header">
         <span class="agent-card-name">${{en}} ${{typeBadge}}</span>
         <span class="agent-card-status ${{statusCls}}" id="badge-${{en}}">${{statusTxt}}</span>
       </div>
-      ${{isHuman ? `<div style="font-size:11px;margin:6px 0">
-        ${{profileRole ? `<div><span style="color:#484f58">Role</span> <span style="color:#c9d1d9">${{profileRole}}</span></div>` : ''}}
-        ${{profileBio ? `<div style="margin-top:2px;color:#8b949e">${{profileBio}}</div>` : ''}}
-        ${{profileStatus ? `<div style="margin-top:4px"><span style="color:#484f58">Status</span> <span style="color:#3498db">${{profileStatus}}</span></div>` : ''}}
-        ${{!profileRole && !profileBio ? '<div style="color:#484f58">No profile set — <button onclick="editProfile(\\'' + en + '\\')" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:11px;font-family:inherit">set up profile</button></div>' : ''}}
-      </div>` : `<div id="health-${{en}}">
+      <div id="health-${{en}}">
       ${{hasHealth ? `<div style="display:flex;align-items:center;gap:8px;margin:6px 0">
         <div class="ctx-bar" style="flex:1;height:10px"><div class="ctx-fill ${{barCls}}" style="width:${{pct}}%" id="ctxFill-${{en}}"></div></div>
         <span style="color:#c9d1d9;font-size:12px;font-weight:600;min-width:70px;text-align:right" id="ctxLabel-${{en}}">${{pct}}% ${{barCls.replace('ctx-','').toUpperCase()}}</span>
@@ -621,7 +635,7 @@ async function loadAgents() {{
         <span><span style="color:#484f58">Tool</span> <span style="color:#c9d1d9" id="tool-${{en}}">${{escHtml(lastTool)}}</span></span>
         ${{host && host !== '—' ? `<span><span style="color:#484f58">Host</span> <span style="color:#c9d1d9">${{host}}</span></span>` : ''}}
       </div>` : `<div style="font-size:11px;color:#484f58;margin:6px 0">No health data</div>`}}
-      </div>`}}
+      </div>
       <div class="agent-card-section">
         <div class="agent-card-section-title"><span>SOUL</span></div>
         <div onclick="showModal('${{en}} — SOUL', agentData['${{en}}'].soul, agentData['${{en}}'].soul_diff)">${{preview(soul, 6)}}</div>
@@ -675,6 +689,18 @@ async function loadAgentData() {{
       soul_diff: h.soul_diff || null
     }};
   }});
+}}
+
+async function saveHoomanSoul(name) {{
+  const text = document.getElementById('hoomanSoul-' + name).value;
+  const resp = await fetch('/api/agents/' + name + '/profile', {{
+    method: 'PUT', headers: {{'Authorization': 'Bearer ' + CONFIG.token, 'Content-Type': 'application/json'}},
+    body: JSON.stringify({{soul: text}})
+  }});
+  if (resp.ok) {{
+    const el = document.getElementById('hoomanSoulStatus-' + name);
+    el.style.display = 'inline'; setTimeout(() => el.style.display = 'none', 2000);
+  }}
 }}
 
 function editConfig(name) {{
