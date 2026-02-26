@@ -2314,9 +2314,9 @@ class TestJoinMessages:
                                      "/api/channels/join-test-1/messages")
         assert status == 200
         join_msgs = [m for m in data["messages"]
-                     if m["sender"] == "System" and "joined" in m["message"]]
+                     if m["sender"] == "System" and "subscribed" in m["message"]]
         assert len(join_msgs) >= 1
-        assert "TestBot joined the channel" in join_msgs[-1]["message"]
+        assert "TestBot subscribed to this channel" in join_msgs[-1]["message"]
 
     def test_no_message_on_resubscribe(self, url_and_token):
         """Re-subscribing to the same channel does not post duplicate join message."""
@@ -2353,7 +2353,7 @@ class TestJoinMessages:
         _, data2 = _raw_request(url, token, "GET",
                                  "/api/channels/join-test-3/messages")
         assert len(data2["messages"]) == count1 + 1
-        assert "left the channel" in data2["messages"][-1]["message"]
+        assert "unsubscribed from this channel" in data2["messages"][-1]["message"]
 
 
 class TestAutoSenderColors:

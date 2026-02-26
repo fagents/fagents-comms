@@ -1347,13 +1347,13 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             new_channels = set(allowed)
             subs[agent_name] = allowed
             save_subscriptions(subs)
-            # Post system messages for joins and leaves
+            # Post system messages for subscription changes
             joined = new_channels - old_channels
             for ch in sorted(joined):
-                write_message(ch, "System", f"{agent_name} joined the channel", msg_type="system")
+                write_message(ch, "System", f"{agent_name} subscribed to this channel (will see messages here)", msg_type="system")
             left = old_channels - new_channels
             for ch in sorted(left):
-                write_message(ch, "System", f"{agent_name} left the channel", msg_type="system")
+                write_message(ch, "System", f"{agent_name} unsubscribed from this channel (will no longer see messages here)", msg_type="system")
             result = {"ok": True, "agent": agent_name, "channels": allowed}
             if rejected:
                 result["rejected"] = rejected
