@@ -3361,6 +3361,67 @@ class TestUnreadAPI:
         ch = next(c for c in data["channels"] if c["channel"] == "ur-allmsgs")
         assert ch["unread_count"] == 1
 
+    def test_unread_wake_channels_specific_channels(self, server_info, second_agent):
+        """wake_channels=ch1,ch2 returns all msgs from those channels only."""
+        url, token, _ = server_info
+        token2, _ = second_agent
+        _raw_request(url, token, "POST", "/api/channels", {"name": "wc-included"})
+        _raw_request(url, token, "POST", "/api/channels", {"name": "wc-excluded"})
+        _raw_request(url, token, "PUT", "/api/channels/wc-included/read", {})
+        _raw_request(url, token, "PUT", "/api/channels/wc-excluded/read", {})
+        _raw_request(url, token2, "POST", "/api/channels/wc-included/messages",
+                     {"message": "no mention here"})
+        _raw_request(url, token2, "POST", "/api/channels/wc-excluded/messages",
+                     {"message": "no mention here either"})
+        s, data = _raw_request(url, token, "GET",
+                               "/api/unread?wake_channels=wc-included")
+        assert s == 200
+        ch_names = [c["channel"] for c in data["channels"]]
+        assert "wc-included" in ch_names
+        assert "wc-excluded" not in ch_names
+
+    def test_unread_wake_channels_case_insensitive(self, server_info, second_agent):
+        """wake_channels matching is case-insensitive."""
+        url, token, _ = server_info
+        token2, _ = second_agent
+        _raw_request(url, token, "POST", "/api/channels", {"name": "wc-casetest"})
+        _raw_request(url, token, "PUT", "/api/channels/wc-casetest/read", {})
+        _raw_request(url, token2, "POST", "/api/channels/wc-casetest/messages",
+                     {"message": "no mention"})
+        s, data = _raw_request(url, token, "GET",
+                               "/api/unread?wake_channels=WC-CaseTest")
+        assert s == 200
+        ch_names = [c["channel"] for c in data["channels"]]
+        assert "wc-casetest" in ch_names
+
+    def test_unread_wake_channels_nonexistent_ignored(self, server_info, second_agent):
+        """Nonexistent channels in wake_channels are silently ignored."""
+        url, token, _ = server_info
+        token2, _ = second_agent
+        _raw_request(url, token, "POST", "/api/channels", {"name": "wc-real"})
+        _raw_request(url, token, "PUT", "/api/channels/wc-real/read", {})
+        _raw_request(url, token2, "POST", "/api/channels/wc-real/messages",
+                     {"message": "no mention"})
+        s, data = _raw_request(url, token, "GET",
+                               "/api/unread?wake_channels=wc-real,nonexistent-xyz")
+        assert s == 200
+        ch_names = [c["channel"] for c in data["channels"]]
+        assert "wc-real" in ch_names
+
+    def test_unread_wake_channels_whitespace_trimmed(self, server_info, second_agent):
+        """Whitespace around channel names in wake_channels is trimmed."""
+        url, token, _ = server_info
+        token2, _ = second_agent
+        _raw_request(url, token, "POST", "/api/channels", {"name": "wc-spaces"})
+        _raw_request(url, token, "PUT", "/api/channels/wc-spaces/read", {})
+        _raw_request(url, token2, "POST", "/api/channels/wc-spaces/messages",
+                     {"message": "no mention"})
+        s, data = _raw_request(url, token, "GET",
+                               "/api/unread?wake_channels=%20wc-spaces%20")
+        assert s == 200
+        ch_names = [c["channel"] for c in data["channels"]]
+        assert "wc-spaces" in ch_names
+
 
 class TestPollAPI:
     """Tests for GET /api/poll — lightweight message count endpoint."""

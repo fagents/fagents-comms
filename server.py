@@ -891,7 +891,7 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             channels = list_accessible_channels(agent)
             mark_read = params.get("mark_read", ["0"])[0] == "1"
             wake_channels_str = params.get("wake_channels", [""])[0]
-            wake_channels = {c.strip() for c in wake_channels_str.split(",") if c.strip()} if wake_channels_str else set()
+            wake_channels = {c.strip().lower() for c in wake_channels_str.split(",") if c.strip()} if wake_channels_str else set()
             result = []
             for ch in channels:
                 ch_name = ch["name"]
