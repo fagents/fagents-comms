@@ -609,7 +609,7 @@ async function loadAgents() {{
         <div id="subsList-${{en}}" style="display:flex;gap:6px;flex-wrap:wrap;font-size:11px;margin-top:2px">
           ${{(subs[name] || []).length ? (subs[name] || []).map(ch => `<span style="background:#21262d;color:#c9d1d9;padding:1px 6px;border-radius:3px">${{escHtml(ch)}}</span>`).join('') : '<span style="color:#484f58">none</span>'}}
         </div>
-        <button onclick="editSubs('${{en}}')" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:10px;font-family:inherit;margin-top:4px">Edit channels</button>
+        <button onclick="editSubs('${{en}}')" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:10px;font-family:inherit;margin-top:4px">Edit subscriptions</button>
         <div id="subsEditor-${{en}}" style="display:none"></div>
       </div>
     </div>`;
@@ -644,13 +644,17 @@ async function loadAgents() {{
         <div id="subsList-${{en}}" style="display:flex;gap:6px;flex-wrap:wrap;font-size:11px;margin-top:2px">
           ${{(subs[name] || []).length ? (subs[name] || []).map(ch => `<span style="background:#21262d;color:#c9d1d9;padding:1px 6px;border-radius:3px">${{escHtml(ch)}}</span>`).join('') : '<span style="color:#484f58">none</span>'}}
         </div>
-        <button onclick="editSubs('${{en}}')" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:10px;font-family:inherit;margin-top:4px">Edit channels</button>
+        <button onclick="editSubs('${{en}}')" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:10px;font-family:inherit;margin-top:4px">Edit subscriptions</button>
         <div id="subsEditor-${{en}}" style="display:none"></div>
+        <div style="margin-top:8px;font-size:11px;color:#8b949e">
+          wake on all msgs in: <strong style="color:#c9d1d9">${{cfg.wake_channels ? escHtml(cfg.wake_channels) : 'none (mentions only)'}}</strong>
+          <button onclick="editWake('${{en}}')" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:10px;font-family:inherit;margin-left:6px">Edit</button>
+        </div>
+        <div id="wakeEditor-${{en}}" style="display:none"></div>
       </div>
       <div class="agent-card-section">
         <div class="agent-card-section-title"><span>Config</span></div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#c9d1d9;margin-top:2px">
-          <span>wake: <strong>mentions + replies${{cfg.wake_channels ? ' + ' + escHtml(cfg.wake_channels) : ''}}</strong></span>
           <span>poll: <strong>${{cfg.poll_interval || 1}}s</strong></span>
           <span>max_turns: <strong>${{cfg.max_turns || 200}}</strong></span>
           <span>heartbeat: <strong>${{cfg.heartbeat_interval || 15000}}s</strong></span>
@@ -726,6 +730,36 @@ async function saveConfig(name) {{
       max_turns: parseInt(document.getElementById('cfg-' + name + '-max_turns').value),
       heartbeat_interval: parseInt(document.getElementById('cfg-' + name + '-heartbeat_interval').value),
     }};
+    const r = await fetch(`/api/agents/${{name}}/config`, {{
+      method: 'PUT',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify(data)
+    }});
+    const j = await r.json();
+    if (j.ok) {{ msg.className = 'config-msg ok'; msg.textContent = 'Saved'; location.reload(); }}
+    else {{ msg.className = 'config-msg err'; msg.textContent = j.error || 'Failed'; }}
+  }} catch(e) {{ msg.className = 'config-msg err'; msg.textContent = e.message; }}
+}}
+
+function editWake(name) {{
+  const ed = document.getElementById('wakeEditor-' + name);
+  if (ed.style.display === 'block') {{ ed.style.display = 'none'; return; }}
+  ed.style.display = 'block';
+  api(`/api/agents/${{name}}/config`).then(data => {{
+    const cfg = data.config || {{}};
+    ed.innerHTML = `<div style="margin-top:4px;display:flex;gap:8px;align-items:center">
+      <input type="text" id="wake-${{name}}" value="${{cfg.wake_channels || ''}}" placeholder="dm-agent,general or * for all" style="width:200px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:4px;padding:3px 6px;font-size:11px;font-family:inherit">
+      <button class="config-save" onclick="saveWake('${{name}}')">Save</button>
+      <span class="config-msg" id="wakeMsg-${{name}}"></span>
+    </div>`;
+  }});
+}}
+
+async function saveWake(name) {{
+  const msg = document.getElementById('wakeMsg-' + name);
+  msg.textContent = '';
+  try {{
+    const data = {{ wake_channels: document.getElementById('wake-' + name).value.trim() }};
     const r = await fetch(`/api/agents/${{name}}/config`, {{
       method: 'PUT',
       headers: {{'Content-Type': 'application/json'}},
