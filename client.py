@@ -172,14 +172,15 @@ class CommsClient:
         result = self._request("PUT", f"/api/channels/{channel}/read", {})
         return result.get("read_at", 0)
 
-    def unread(self, mark_read=False, mentions_only=False):
+    def unread(self, mark_read=False, wake_channels=None):
         """Get unread messages across all channels.
-        Returns list of {channel, unread_count, messages}."""
+        Returns mentions from all channels + all messages from wake_channels.
+        wake_channels: comma-separated string or "*" for all."""
         params = []
         if mark_read:
             params.append("mark_read=1")
-        if mentions_only:
-            params.append("mentions=1")
+        if wake_channels:
+            params.append(f"wake_channels={wake_channels}")
         qs = "&".join(params)
         path = f"/api/unread?{qs}" if qs else "/api/unread"
         result = self._request("GET", path)

@@ -890,7 +890,8 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             markers = AGENT_READ_MARKERS.get(agent, {})
             channels = list_accessible_channels(agent)
             mark_read = params.get("mark_read", ["0"])[0] == "1"
-            mentions_only = params.get("mentions", ["0"])[0] == "1"
+            wake_channels_str = params.get("wake_channels", [""])[0]
+            wake_channels = {c.strip() for c in wake_channels_str.split(",") if c.strip()} if wake_channels_str else set()
             result = []
             for ch in channels:
                 ch_name = ch["name"]
@@ -898,7 +899,7 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
                 last_read = markers.get(ch_name, 0)
                 if total > last_read:
                     msgs, _ = read_channel(ch_name, since=last_read)
-                    if mentions_only:
+                    if ch_name not in wake_channels and "*" not in wake_channels:
                         msgs = filter_mentions(msgs, agent)
                     if msgs:
                         result.append({

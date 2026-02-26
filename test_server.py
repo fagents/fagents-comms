@@ -3210,7 +3210,7 @@ class TestUnreadAPI:
                      {"message": "after1"})
         _raw_request(url, token, "POST", "/api/channels/ur-new/messages",
                      {"message": "after2"})
-        s, data = _raw_request(url, token, "GET", "/api/unread")
+        s, data = _raw_request(url, token, "GET", "/api/unread?wake_channels=*")
         assert s == 200
         ch = next(c for c in data["channels"] if c["channel"] == "ur-new")
         assert ch["unread_count"] == 2
@@ -3237,7 +3237,7 @@ class TestUnreadAPI:
                      {"message": "a-msg"})
         _raw_request(url, token, "POST", "/api/channels/ur-multi-b/messages",
                      {"message": "b-msg"})
-        s, data = _raw_request(url, token, "GET", "/api/unread")
+        s, data = _raw_request(url, token, "GET", "/api/unread?wake_channels=*")
         assert s == 200
         ch_names = [c["channel"] for c in data["channels"]]
         assert "ur-multi-a" in ch_names
@@ -3253,7 +3253,7 @@ class TestUnreadAPI:
         _raw_request(url, token, "PUT", "/api/channels/ur-skip-read/read", {})
         _raw_request(url, token, "POST", "/api/channels/ur-skip-unread/messages",
                      {"message": "unread"})
-        s, data = _raw_request(url, token, "GET", "/api/unread")
+        s, data = _raw_request(url, token, "GET", "/api/unread?wake_channels=*")
         assert s == 200
         ch_names = [c["channel"] for c in data["channels"]]
         assert "ur-skip-read" not in ch_names
@@ -3266,12 +3266,12 @@ class TestUnreadAPI:
         _raw_request(url, token, "POST", "/api/channels/ur-mark/messages",
                      {"message": "msg1"})
         # First call with mark_read — should return the message
-        s, data = _raw_request(url, token, "GET", "/api/unread?mark_read=1")
+        s, data = _raw_request(url, token, "GET", "/api/unread?mark_read=1&wake_channels=*")
         assert s == 200
         ch_names = [c["channel"] for c in data["channels"]]
         assert "ur-mark" in ch_names
         # Second call — should be empty for this channel
-        s, data2 = _raw_request(url, token, "GET", "/api/unread")
+        s, data2 = _raw_request(url, token, "GET", "/api/unread?wake_channels=*")
         assert s == 200
         ch_names2 = [c["channel"] for c in data2["channels"]]
         assert "ur-mark" not in ch_names2
@@ -3285,7 +3285,7 @@ class TestUnreadAPI:
         _raw_request(url, token, "GET", "/api/unread?mark_read=1")
         _raw_request(url, token, "POST", "/api/channels/ur-mark-new/messages",
                      {"message": "new"})
-        s, data = _raw_request(url, token, "GET", "/api/unread")
+        s, data = _raw_request(url, token, "GET", "/api/unread?wake_channels=*")
         assert s == 200
         ch = next(c for c in data["channels"] if c["channel"] == "ur-mark-new")
         assert ch["unread_count"] == 1
@@ -3297,10 +3297,10 @@ class TestUnreadAPI:
         _raw_request(url, token, "POST", "/api/channels", {"name": "ur-nomark"})
         _raw_request(url, token, "POST", "/api/channels/ur-nomark/messages",
                      {"message": "persistent"})
-        s, data1 = _raw_request(url, token, "GET", "/api/unread")
+        s, data1 = _raw_request(url, token, "GET", "/api/unread?wake_channels=*")
         ch1 = next((c for c in data1["channels"] if c["channel"] == "ur-nomark"), None)
         assert ch1 is not None
-        s, data2 = _raw_request(url, token, "GET", "/api/unread")
+        s, data2 = _raw_request(url, token, "GET", "/api/unread?wake_channels=*")
         ch2 = next((c for c in data2["channels"] if c["channel"] == "ur-nomark"), None)
         assert ch2 is not None
         assert ch2["unread_count"] == ch1["unread_count"]
@@ -3316,7 +3316,7 @@ class TestUnreadAPI:
                      {"message": "hey @TestBot check this"})
         _raw_request(url, token2, "POST", "/api/channels/ur-ment/messages",
                      {"message": "general chatter"})
-        s, data = _raw_request(url, token, "GET", "/api/unread?mentions=1")
+        s, data = _raw_request(url, token, "GET", "/api/unread")
         assert s == 200
         ch = next(c for c in data["channels"] if c["channel"] == "ur-ment")
         assert ch["unread_count"] == 1
@@ -3330,7 +3330,7 @@ class TestUnreadAPI:
         _raw_request(url, token, "PUT", "/api/channels/ur-reply/read", {})
         _raw_request(url, token2, "POST", "/api/channels/ur-reply/messages",
                      {"message": "> @TestBot: something\n\nmy reply"})
-        s, data = _raw_request(url, token, "GET", "/api/unread?mentions=1")
+        s, data = _raw_request(url, token, "GET", "/api/unread")
         assert s == 200
         ch = next(c for c in data["channels"] if c["channel"] == "ur-reply")
         assert ch["unread_count"] == 1
@@ -3343,20 +3343,20 @@ class TestUnreadAPI:
         _raw_request(url, token, "PUT", "/api/channels/ur-noment/read", {})
         _raw_request(url, token2, "POST", "/api/channels/ur-noment/messages",
                      {"message": "no mention here"})
-        s, data = _raw_request(url, token, "GET", "/api/unread?mentions=1")
+        s, data = _raw_request(url, token, "GET", "/api/unread")
         assert s == 200
         ch_names = [c["channel"] for c in data["channels"]]
         assert "ur-noment" not in ch_names
 
-    def test_unread_without_mentions_returns_all(self, server_info, second_agent):
-        """Without mentions=1, all unread messages are returned."""
+    def test_unread_wake_channels_star_returns_all(self, server_info, second_agent):
+        """With wake_channels=*, all unread messages are returned."""
         url, token, _ = server_info
         token2, _ = second_agent
         _raw_request(url, token, "POST", "/api/channels", {"name": "ur-allmsgs"})
         _raw_request(url, token, "PUT", "/api/channels/ur-allmsgs/read", {})
         _raw_request(url, token2, "POST", "/api/channels/ur-allmsgs/messages",
                      {"message": "no mention"})
-        s, data = _raw_request(url, token, "GET", "/api/unread")
+        s, data = _raw_request(url, token, "GET", "/api/unread?wake_channels=*")
         assert s == 200
         ch = next(c for c in data["channels"] if c["channel"] == "ur-allmsgs")
         assert ch["unread_count"] == 1
@@ -3446,7 +3446,7 @@ class TestClientExtendedMethods:
     def test_client_unread(self, client):
         ch = "client-ext-unread"
         client.send(ch, "unread msg")
-        result = client.unread()
+        result = client.unread(wake_channels="*")
         assert isinstance(result, list)
         ch_entry = [u for u in result if u["channel"] == ch]
         assert len(ch_entry) > 0
@@ -3455,19 +3455,19 @@ class TestClientExtendedMethods:
     def test_client_unread_mark_read(self, client):
         ch = "client-ext-unread-mr"
         client.send(ch, "read me")
-        result = client.unread(mark_read=True)
+        result = client.unread(mark_read=True, wake_channels="*")
         ch_entry = [u for u in result if u["channel"] == ch]
         assert len(ch_entry) > 0
         # After mark_read=True, second call should show no unread for this channel
-        result2 = client.unread()
+        result2 = client.unread(wake_channels="*")
         ch_entry2 = [u for u in result2 if u["channel"] == ch]
         assert len(ch_entry2) == 0
 
-    def test_client_unread_mentions_only(self, client):
+    def test_client_unread_default_mentions_only(self, client):
         ch = "client-ext-mentions"
         client.send(ch, "hello world")
         client.send(ch, "hey @TestBot check this")
-        result = client.unread(mentions_only=True)
+        result = client.unread()
         ch_entry = [u for u in result if u["channel"] == ch]
         if ch_entry:
             for msg in ch_entry[0]["messages"]:
