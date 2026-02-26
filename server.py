@@ -225,7 +225,7 @@ def save_subscriptions(subs):
 # ── Agent config ────────────────────────────────────────────────────────
 
 AGENT_CONFIG_DEFAULTS = {
-    "wake_mode": "mentions",
+    "wake_channels": "",
     "poll_interval": 1,
     "max_turns": 200,
     "heartbeat_interval": 15000,

@@ -3493,16 +3493,16 @@ class TestClientExtendedMethods:
 
     def test_client_get_config(self, client):
         config = client.get_config()
-        assert "wake_mode" in config
+        assert "wake_channels" in config
         assert "poll_interval" in config
 
     def test_client_set_config(self, client):
-        config = client.set_config(wake_mode="channel", poll_interval=5)
-        assert config["wake_mode"] == "channel"
+        config = client.set_config(wake_channels="general", poll_interval=5)
+        assert config["wake_channels"] == "general"
         assert config["poll_interval"] == 5
         # Verify via get
         config2 = client.get_config()
-        assert config2["wake_mode"] == "channel"
+        assert config2["wake_channels"] == "general"
         assert config2["poll_interval"] == 5
 
     def test_client_delete_channel(self, client):
@@ -3780,7 +3780,7 @@ class TestAgentConfig:
         s, data = _raw_request(url, fresh_token, "GET",
                                "/api/agents/ConfigFresh/config")
         assert s == 200
-        assert data["config"]["wake_mode"] == "mentions"
+        assert data["config"]["wake_channels"] == ""
         assert data["config"]["poll_interval"] == 1
 
     def test_partial_update_preserves_other_key(self, server_info):
@@ -3790,13 +3790,13 @@ class TestAgentConfig:
         # Set both keys
         _raw_request(url, agent_token, "PUT",
                      "/api/agents/ConfigPartial/config",
-                     {"wake_mode": "channel", "poll_interval": 10})
-        # Update only wake_mode
+                     {"wake_channels": "general", "poll_interval": 10})
+        # Update only wake_channels
         s, data = _raw_request(url, agent_token, "PUT",
                                "/api/agents/ConfigPartial/config",
-                               {"wake_mode": "mentions"})
+                               {"wake_channels": ""})
         assert s == 200
-        assert data["config"]["wake_mode"] == "mentions"
+        assert data["config"]["wake_channels"] == ""
         assert data["config"]["poll_interval"] == 10  # preserved
 
     def test_unknown_keys_ignored(self, server_info):
@@ -3805,7 +3805,7 @@ class TestAgentConfig:
         agent_token = _server_module.add_agent("ConfigUnknown")
         s, data = _raw_request(url, agent_token, "PUT",
                                "/api/agents/ConfigUnknown/config",
-                               {"wake_mode": "channel", "bogus_key": "evil"})
+                               {"wake_channels": "general", "bogus_key": "evil"})
         assert s == 200
         assert "bogus_key" not in data["config"]
         # Verify on re-read
@@ -3820,12 +3820,12 @@ class TestAgentConfig:
         t2 = _server_module.add_agent("ConfigIso2")
         # Agent 1 sets custom config
         _raw_request(url, t1, "PUT", "/api/agents/ConfigIso1/config",
-                     {"wake_mode": "channel", "poll_interval": 99})
+                     {"wake_channels": "general", "poll_interval": 99})
         # Agent 2 should still have defaults
         s, data = _raw_request(url, t2, "GET",
                                "/api/agents/ConfigIso2/config")
         assert s == 200
-        assert data["config"]["wake_mode"] == "mentions"
+        assert data["config"]["wake_channels"] == ""
         assert data["config"]["poll_interval"] == 1
 
     def test_config_accepts_any_value_type(self, server_info):
@@ -4333,18 +4333,18 @@ class TestExpandedConfig:
         assert data["config"]["activity_follow"] == []
 
     def test_new_keys_dont_break_existing(self, server_info):
-        """Setting new keys preserves existing wake_mode/poll_interval."""
+        """Setting new keys preserves existing wake_channels/poll_interval."""
         url, _, _ = server_info
         token = _server_module.add_agent("CfgCompat")
         _raw_request(url, token, "PUT",
                      "/api/agents/CfgCompat/config",
-                     {"wake_mode": "channel", "poll_interval": 5})
+                     {"wake_channels": "general", "poll_interval": 5})
         # Now set only new keys
         s, data = _raw_request(url, token, "PUT",
                                "/api/agents/CfgCompat/config",
                                {"max_turns": 100})
         assert s == 200
-        assert data["config"]["wake_mode"] == "channel"
+        assert data["config"]["wake_channels"] == "general"
         assert data["config"]["poll_interval"] == 5
         assert data["config"]["max_turns"] == 100
 

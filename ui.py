@@ -650,7 +650,7 @@ async function loadAgents() {{
       <div class="agent-card-section">
         <div class="agent-card-section-title"><span>Config</span></div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#c9d1d9;margin-top:2px">
-          <span>wake: <strong>${{escHtml(cfg.wake_mode || 'mentions')}}</strong></span>
+          <span>wake: <strong>mentions + replies${{cfg.wake_channels ? ' + ' + escHtml(cfg.wake_channels) : ''}}</strong></span>
           <span>poll: <strong>${{cfg.poll_interval || 1}}s</strong></span>
           <span>max_turns: <strong>${{cfg.max_turns || 200}}</strong></span>
           <span>heartbeat: <strong>${{cfg.heartbeat_interval || 15000}}s</strong></span>
@@ -700,11 +700,8 @@ function editConfig(name) {{
   api(`/api/agents/${{name}}/config`).then(data => {{
     const cfg = data.config || {{}};
     ed.innerHTML = `<div class="config-form" style="margin-top:8px">
-      <div class="config-field"><label>wake_mode</label>
-        <select id="cfg-${{name}}-wake_mode">
-          <option value="mentions" ${{cfg.wake_mode === 'mentions' ? 'selected' : ''}}>mentions</option>
-          <option value="channel" ${{cfg.wake_mode === 'channel' ? 'selected' : ''}}>channel</option>
-        </select></div>
+      <div class="config-field"><label>wake_channels</label>
+        <input type="text" id="cfg-${{name}}-wake_channels" value="${{cfg.wake_channels || ''}}" placeholder="dm-agent,general or * for all" style="width:200px"></div>
       <div class="config-field"><label>poll_interval (s)</label>
         <input type="number" id="cfg-${{name}}-poll_interval" value="${{cfg.poll_interval || 1}}" min="1"></div>
       <div class="config-field"><label>max_turns</label>
@@ -724,7 +721,7 @@ async function saveConfig(name) {{
   msg.textContent = '';
   try {{
     const data = {{
-      wake_mode: document.getElementById('cfg-' + name + '-wake_mode').value,
+      wake_channels: document.getElementById('cfg-' + name + '-wake_channels').value.trim(),
       poll_interval: parseInt(document.getElementById('cfg-' + name + '-poll_interval').value),
       max_turns: parseInt(document.getElementById('cfg-' + name + '-max_turns').value),
       heartbeat_interval: parseInt(document.getElementById('cfg-' + name + '-heartbeat_interval').value),

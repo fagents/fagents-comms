@@ -204,13 +204,13 @@ class CommsClient:
     # ── Agent config ──
 
     def get_config(self):
-        """Get agent config (wake_mode, poll_interval)."""
+        """Get agent config (wake_channels, poll_interval)."""
         name = self.whoami()
         result = self._request("GET", f"/api/agents/{name}/config")
         return result.get("config", {})
 
     def set_config(self, **kwargs):
-        """Update agent config. Accepts wake_mode, poll_interval."""
+        """Update agent config. Accepts wake_channels, poll_interval."""
         name = self.whoami()
         result = self._request("PUT", f"/api/agents/{name}/config", kwargs)
         return result.get("config", {})
