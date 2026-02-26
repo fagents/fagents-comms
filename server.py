@@ -671,7 +671,8 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             agent_names = sorted(set(tokens.values()))
             channel_acl = load_channels_acl().get(channel_name, {})
             channel_description = channel_acl.get("description", "")
-            agent_cfg = load_agent_config().get(agent, {})
+            all_agent_config = load_agent_config()
+            agent_cfg = all_agent_config.get(agent, {})
             activity_follow = agent_cfg.get("activity_follow", [])
             agent_profiles = {n: get_agent_profile(n) for n in agent_names}
             content = page_html(channel_name, messages, channels,
@@ -679,7 +680,8 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
                                 channel_acl, agent, channel_description,
                                 total_count=total_count,
                                 activity_follow=activity_follow,
-                                agent_profiles=agent_profiles).encode()
+                                agent_profiles=agent_profiles,
+                                agent_configs=all_agent_config).encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")

@@ -890,7 +890,7 @@ def page_html(channel_name, messages, channels_list, agent_names,
               agent_health, agent_activity, channel_acl=None,
               current_agent=None, channel_description="",
               total_count=None, activity_follow=None,
-              agent_profiles=None):
+              agent_profiles=None, agent_configs=None):
     """Render the full web UI page.
 
     Args:
@@ -904,6 +904,7 @@ def page_html(channel_name, messages, channels_list, agent_names,
         current_agent: Authenticated agent name (shown as sender identity)
         total_count: Total message count in channel (may differ from len(messages) due to truncation)
         agent_profiles: {agent_name: profile_dict} for type-aware rendering
+        agent_configs: {agent_name: config_dict} for wake_channels display
     """
     msg_html = render_messages_html(messages, agent_profiles)
     agent_html = render_compact_agent_panels_html(agent_names, agent_health, agent_profiles)
@@ -924,16 +925,34 @@ def page_html(channel_name, messages, channels_list, agent_names,
         )
     ch_list_html = "\n".join(ch_items) if ch_items else '<div class="ch-empty">No channels</div>'
 
-    # Channel members bar
+    # Channel access list (from ACL)
     allow_list = (channel_acl or {}).get("allow", ["*"])
     if "*" in allow_list:
-        members_html = '<span class="ch-member">All agents</span>'
+        access_html = '<span class="ch-member">everyone</span>'
     else:
-        members_html = "".join(
+        access_html = "".join(
             f'<span class="ch-member" style="color:{_color_for_sender(a)["name"]}">'
             f'{html.escape(a)}</span>'
             for a in sorted(allow_list)
         )
+
+    # Wake list (agents whose wake_channels include this channel)
+    wake_agents = []
+    for name in agent_names:
+        cfg = (agent_configs or {}).get(name, {})
+        wc = cfg.get("wake_channels", "")
+        if wc:
+            channels = {c.strip().lower() for c in wc.split(",") if c.strip()}
+            if channel_name.lower() in channels or "*" in channels:
+                wake_agents.append(name)
+    if wake_agents:
+        wake_html = "".join(
+            f'<span class="ch-member" style="color:{_color_for_sender(a)["name"]}">'
+            f'{html.escape(a)}</span>'
+            for a in sorted(wake_agents)
+        )
+    else:
+        wake_html = '<span class="ch-member" style="color:#484f58">none</span>'
 
     # Sender identity label (determined by auth token)
     sender_label = html.escape(current_agent or "Unknown")
@@ -1127,7 +1146,8 @@ def page_html(channel_name, messages, channels_list, agent_names,
     <div class="ch-list" id="channelList">{ch_list_html}</div>
   </div>
   <div class="chat-col">
-    <div class="ch-members"><span class="ch-members-label">Members:</span> {members_html} <button onclick="editAccess()" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:10px;font-family:inherit;margin-left:6px">Edit</button>{f' <span style="color:#8b949e;margin-left:8px;font-style:italic">{html.escape(channel_description)}</span>' if channel_description else ''}</div>
+    <div class="ch-members"><span class="ch-members-label">Has access:</span> {access_html} <button onclick="editAccess()" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:10px;font-family:inherit;margin-left:6px">Edit</button>{f' <span style="color:#8b949e;margin-left:8px;font-style:italic">{html.escape(channel_description)}</span>' if channel_description else ''}</div>
+    <div class="ch-members"><span class="ch-members-label">Wakes up on msg:</span> {wake_html}</div>
     <div id="aclEditor" style="display:none;background:#161b22;border:1px solid #30363d;border-radius:6px;padding:8px;margin:4px 0;font-size:11px">
       <div style="font-weight:600;color:#e6edf3;margin-bottom:4px">Channel Access</div>
       <div id="aclAgents"></div>
