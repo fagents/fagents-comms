@@ -4905,6 +4905,26 @@ class TestTypeFilter:
         assert name in data
         assert name2 not in data
 
+    def test_agents_list_filter_ai_includes_profileless(self, server_info, second_agent):
+        """GET /api/agents/list?type=ai includes agents with no profile (default type=ai).
+
+        The server uses profiles.get(n, {}).get("type", "ai") == type_filter,
+        so an agent with no profile entry defaults to "ai" and appears in the
+        ai-filtered list. This is the backwards-compat default — untested until now.
+        """
+        url, token, name = server_info
+        _, name2 = second_agent
+        profiles = _server_module.load_agent_profiles()
+        # name: explicitly human
+        profiles[name] = {"type": "human"}
+        # name2: no profile entry at all → defaults to "ai"
+        profiles.pop(name2, None)
+        _server_module.save_agent_profiles(profiles)
+        s, data = _raw_request(url, token, "GET", "/api/agents/list?type=ai")
+        assert s == 200
+        assert name2 in data   # profileless → defaults to ai
+        assert name not in data  # explicitly human → excluded
+
 
 class TestTypeAwareACL:
     """Tests for @humans/@ais in channel ACLs."""
