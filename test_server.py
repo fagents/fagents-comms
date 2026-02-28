@@ -527,6 +527,25 @@ class TestAgentHealth:
         assert isinstance(data, list)
         assert "TestBot" in data
 
+    def test_agents_endpoint_includes_agent_with_no_health(self, url_and_token):
+        """GET /api/agents includes agents that have never reported health.
+
+        The server iterates AGENT_HEALTH for agents with data, then falls back
+        to the token registry to include any registered agent that reported no
+        health. Those agents appear with just {"type": ...} and no health fields.
+        """
+        url, token = url_and_token
+        # Register a fresh agent — never POST health
+        _server_module.add_agent("HealthlessAgent")
+        s, data = _raw_request(url, token, "GET", "/api/agents")
+        assert s == 200
+        assert "HealthlessAgent" in data
+        entry = data["HealthlessAgent"]
+        # Only type is present — no health fields
+        assert entry["type"] == "ai"  # no profile → defaults to ai
+        assert "context_pct" not in entry
+        assert "reported_at" not in entry
+
     def test_status_message_stored_and_readable(self, url_and_token):
         """Status message survives POST health and shows in GET agents."""
         url, token = url_and_token
