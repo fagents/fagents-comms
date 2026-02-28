@@ -4904,6 +4904,76 @@ class TestTypeAwareACL:
         assert s2 == 200
 
 
+class TestWriteAllowACL:
+    """Tests for write_allow — separate read/write ACL on channels."""
+
+    def test_write_allow_blocks_read_for_ai(self, server_info, second_agent):
+        """Channel with allow=[@humans], write_allow=[@ais]: AI can write but not read."""
+        url, token, name = server_info
+        token2, name2 = second_agent
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "human"}
+        profiles[name2] = {"type": "ai"}
+        _server_module.save_agent_profiles(profiles)
+        _raw_request(url, token, "POST", "/api/channels", {"name": "wa-readblock"})
+        acl = _server_module.load_channels_acl()
+        acl["wa-readblock"] = {"allow": ["@humans"], "write_allow": ["@ais"]}
+        _server_module.save_channels_acl(acl)
+        # AI cannot read
+        s_read, _ = _raw_request(url, token2, "GET", "/api/channels/wa-readblock/messages")
+        assert s_read == 403
+        # AI can write
+        s_write, _ = _raw_request(url, token2, "POST", "/api/channels/wa-readblock/messages",
+                                   {"message": "test log entry"})
+        assert s_write == 200
+
+    def test_write_allow_human_can_read(self, server_info, second_agent):
+        """Channel with allow=[@humans], write_allow=[@ais]: human can read."""
+        url, token, name = server_info
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "human"}
+        _server_module.save_agent_profiles(profiles)
+        _raw_request(url, token, "POST", "/api/channels", {"name": "wa-humanread"})
+        acl = _server_module.load_channels_acl()
+        acl["wa-humanread"] = {"allow": ["@humans"], "write_allow": ["@ais"]}
+        _server_module.save_channels_acl(acl)
+        s, _ = _raw_request(url, token, "GET", "/api/channels/wa-humanread/messages")
+        assert s == 200
+
+    def test_no_write_allow_falls_back_to_allow(self, server_info, second_agent):
+        """Without write_allow, writing uses allow (backwards compat)."""
+        url, token, name = server_info
+        token2, name2 = second_agent
+        _raw_request(url, token, "POST", "/api/channels", {"name": "wa-fallback"})
+        acl = _server_module.load_channels_acl()
+        acl["wa-fallback"] = {"allow": [name]}
+        _server_module.save_channels_acl(acl)
+        # token2 (not in allow) cannot write
+        s, _ = _raw_request(url, token2, "POST", "/api/channels/wa-fallback/messages",
+                             {"message": "should fail"})
+        assert s == 403
+
+    def test_create_channel_with_write_allow(self, url_and_token, second_agent):
+        """Creating a channel with write_allow stores it in ACL."""
+        url, token = url_and_token
+        token2, _ = second_agent
+        _raw_request(url, token, "POST", "/api/channels",
+                     {"name": "wa-create", "allow": ["TestBot"], "write_allow": ["OtherBot"]})
+        s, acl = _raw_request(url, token, "GET", "/api/channels/wa-create/acl")
+        assert s == 200
+        assert acl.get("write_allow") == ["OtherBot"]
+
+    def test_set_acl_with_write_allow(self, url_and_token):
+        """PUT /acl accepts and stores write_allow."""
+        url, token = url_and_token
+        _raw_request(url, token, "POST", "/api/channels", {"name": "wa-setacl"})
+        _raw_request(url, token, "PUT", "/api/channels/wa-setacl/acl",
+                     {"allow": ["@humans"], "write_allow": ["@ais"]})
+        s, acl = _raw_request(url, token, "GET", "/api/channels/wa-setacl/acl")
+        assert s == 200
+        assert "@ais" in acl.get("write_allow", [])
+
+
 class TestTypeAwareSearch:
     """Tests for from_type filter on search endpoint."""
 

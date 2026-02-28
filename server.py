@@ -184,6 +184,34 @@ def agent_can_access(channel_name, agent_name):
     return False
 
 
+def agent_can_write(channel_name, agent_name):
+    """Check if agent can write to channel.
+
+    If write_allow is defined, it gates writes separately from reads (allow).
+    Falls back to allow if write_allow is absent (backwards compat).
+
+    Supports group ACL entries: @humans, @ais, *, or specific agent names.
+    """
+    acl = load_channels_acl()
+    entry = acl.get(channel_name)
+    if entry is None:
+        return True  # no ACL entry = open
+    write_allow = entry.get("write_allow")
+    if write_allow is None:
+        # No write_allow defined — fall back to unified allow (backwards compat)
+        return agent_can_access(channel_name, agent_name)
+    if "*" in write_allow or agent_name in write_allow:
+        return True
+    if "@humans" in write_allow or "@ais" in write_allow:
+        profile = get_agent_profile(agent_name)
+        agent_type = profile.get("type", "ai")
+        if "@humans" in write_allow and agent_type == "human":
+            return True
+        if "@ais" in write_allow and agent_type == "ai":
+            return True
+    return False
+
+
 def list_accessible_channels(agent_name):
     """Return channel list filtered to those the agent can access."""
     return [c for c in list_channels() if agent_can_access(c["name"], agent_name)]
@@ -540,6 +568,16 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
         if not channel_name:
             return None
         if not agent_can_access(channel_name, agent):
+            self.send_text("Access denied", 403)
+            return None
+        return channel_name
+
+    def require_channel_write(self, path, agent):
+        """Extract channel name from path and verify write access. Returns name or None."""
+        channel_name = self.require_path_param(path, "channel name")
+        if not channel_name:
+            return None
+        if not agent_can_write(channel_name, agent):
             self.send_text("Access denied", 403)
             return None
         return channel_name
@@ -1124,6 +1162,9 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
                 if "*" not in allow and agent not in allow:
                     allow.append(agent)
                 entry = {"allow": allow, "created_by": agent}
+                write_allow = data.get("write_allow")
+                if write_allow is not None and isinstance(write_allow, list):
+                    entry["write_allow"] = write_allow
                 description = data.get("description", "")
                 if isinstance(description, str) and description:
                     entry["description"] = description[:200]
@@ -1154,7 +1195,7 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
 
         # ── API: send message ──
         elif path.startswith("/api/channels/") and path.endswith("/messages"):
-            channel_name = self.require_channel_access(path, agent)
+            channel_name = self.require_channel_write(path, agent)
             if not channel_name:
                 return
 
@@ -1242,6 +1283,12 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             if channel_name not in acl:
                 acl[channel_name] = {}
             acl[channel_name]["allow"] = allow
+            write_allow = data.get("write_allow")
+            if write_allow is not None:
+                if not isinstance(write_allow, list):
+                    self.send_text("write_allow must be an array", 400)
+                    return
+                acl[channel_name]["write_allow"] = write_allow
             save_channels_acl(acl)
             self.send_json({"ok": True, "channel": channel_name, "allow": allow})
 
