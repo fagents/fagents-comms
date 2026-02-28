@@ -5036,6 +5036,32 @@ class TestWriteAllowACL:
         assert s == 200
         assert "@ais" in acl.get("write_allow", [])
 
+    def test_write_allow_blocks_write_for_excluded_agent(self, server_info, second_agent):
+        """An agent that can read a channel can still be blocked from writing.
+
+        allow=* gives everyone read access. write_allow=[@ais] restricts writes
+        to AIs only. A human agent can GET messages (200) but POST message → 403.
+        This is the inverse of test_write_allow_blocks_read_for_ai and exercises
+        the read-only-for-humans use case.
+        """
+        url, token, name = server_info
+        profiles = _server_module.load_agent_profiles()
+        profiles[name] = {"type": "human"}
+        _server_module.save_agent_profiles(profiles)
+        _raw_request(url, token, "POST", "/api/channels", {"name": "wa-readonly-human"})
+        acl = _server_module.load_channels_acl()
+        acl["wa-readonly-human"] = {"allow": ["*"], "write_allow": ["@ais"]}
+        _server_module.save_channels_acl(acl)
+        # Human can read
+        s_read, _ = _raw_request(url, token, "GET",
+                                 "/api/channels/wa-readonly-human/messages")
+        assert s_read == 200
+        # Human cannot write
+        s_write, _ = _raw_request(url, token, "POST",
+                                  "/api/channels/wa-readonly-human/messages",
+                                  {"message": "should be blocked"})
+        assert s_write == 403
+
 
 class TestTypeAwareSearch:
     """Tests for from_type filter on search endpoint."""
