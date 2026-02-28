@@ -3422,6 +3422,28 @@ class TestUnreadAPI:
         ch_names = [c["channel"] for c in data["channels"]]
         assert "wc-spaces" in ch_names
 
+    def test_unread_wake_channels_respects_acl(self, server_info, second_agent):
+        """Listing a restricted channel in wake_channels does not bypass ACL.
+
+        unread iterates list_accessible_channels() first, so a channel the
+        requesting agent cannot read is excluded regardless of wake_channels.
+        wake_channels controls mention-filtering, not access control.
+        """
+        url, token, agent_name = server_info
+        token2, agent2 = second_agent
+        # Create a channel restricted to agent2 only
+        _raw_request(url, token2, "POST", "/api/channels",
+                     {"name": "wc-acl-restricted", "allow": [agent2]})
+        # agent2 posts a message so there is something to return if ACL were bypassed
+        _raw_request(url, token2, "POST", "/api/channels/wc-acl-restricted/messages",
+                     {"message": "secret"})
+        # agent1 explicitly names the restricted channel in wake_channels
+        s, data = _raw_request(url, token, "GET",
+                               "/api/unread?wake_channels=wc-acl-restricted")
+        assert s == 200
+        ch_names = [c["channel"] for c in data["channels"]]
+        assert "wc-acl-restricted" not in ch_names
+
 
 class TestPollAPI:
     """Tests for GET /api/poll — lightweight message count endpoint."""
