@@ -1146,6 +1146,30 @@ class TestDeleteChannel:
         s, _ = _raw_request(url, token2, "DELETE", "/api/channels/del-forbidden")
         assert s == 403
 
+    def test_delete_requires_only_read_access(self, url_and_token, second_agent):
+        """Any agent with READ access can delete a channel — DELETE uses require_channel_access.
+
+        The server does not check write_allow for deletion. A channel with
+        allow=* (everyone reads) + write_allow=[creator only] can still be
+        deleted by any agent that can read it. This documents the access model:
+        read permission = delete permission.
+        """
+        url, token = url_and_token
+        token2, _ = second_agent
+        # Create open channel (allow=*) with restricted write_allow
+        _raw_request(url, token, "POST", "/api/channels", {"name": "del-readaccess"})
+        acl = _server_module.load_channels_acl()
+        acl["del-readaccess"] = {"allow": ["*"], "write_allow": ["TestBot"]}
+        _server_module.save_channels_acl(acl)
+        # Verify second_agent cannot write to this channel
+        s_write, _ = _raw_request(url, token2, "POST",
+                                  "/api/channels/del-readaccess/messages",
+                                  {"message": "should fail"})
+        assert s_write == 403
+        # But second_agent CAN delete it (has read access)
+        s_del, body = _raw_request(url, token2, "DELETE", "/api/channels/del-readaccess")
+        assert s_del == 200
+
     def test_delete_removes_acl_entry(self, url_and_token):
         """Deleting a channel also removes its ACL entry."""
         url, token = url_and_token
