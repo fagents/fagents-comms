@@ -3900,6 +3900,22 @@ class TestAgentConfig:
         assert s == 200
         assert data["config"]["poll_interval"] == "banana"
 
+    def test_cross_agent_config_read_permitted(self, server_info):
+        """Any authenticated agent can GET another agent's config — intentional, config is non-sensitive."""
+        url, token, _ = server_info
+        owner_token = _server_module.add_agent("ConfigOwner")
+        reader_token = _server_module.add_agent("ConfigReader")
+        # Owner sets config
+        _raw_request(url, owner_token, "PUT",
+                     "/api/agents/ConfigOwner/config",
+                     {"wake_channels": "general", "poll_interval": 42})
+        # Reader reads owner's config using reader's token
+        s, data = _raw_request(url, reader_token, "GET",
+                               "/api/agents/ConfigOwner/config")
+        assert s == 200
+        assert data["config"]["wake_channels"] == "general"
+        assert data["config"]["poll_interval"] == 42
+
 
 class TestChannelInfo:
     """Tests for GET /api/channels/{name}/info — combined metadata endpoint."""
