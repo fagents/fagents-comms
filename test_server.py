@@ -4288,6 +4288,28 @@ class TestSearchChannelFilter:
         assert s == 200
         assert data["count"] == 0
 
+    def test_search_channel_filter_respects_acl(self, server_info, second_agent):
+        """?channel= with a channel the agent cannot access returns empty, not 403.
+
+        search uses list_accessible_channels() before applying the channel filter,
+        so a restricted channel is silently excluded from the candidate list.
+        The result is an empty set rather than an access-denied error — consistent
+        with the server's pattern of not leaking channel existence via error codes.
+        """
+        url, token, _ = server_info
+        token2, name2 = second_agent
+        # Create a channel only agent2 can access, with a message
+        _raw_request(url, token2, "POST", "/api/channels",
+                     {"name": "sch-restricted", "allow": [name2]})
+        _raw_request(url, token2, "POST", "/api/channels/sch-restricted/messages",
+                     {"message": "secret-sch-payload"})
+        # agent1 searches that channel directly — should get empty, not 403
+        s, data = _raw_request(url, token, "GET",
+                               "/api/search?q=secret-sch-payload&channel=sch-restricted")
+        assert s == 200
+        assert data["count"] == 0
+        assert data["results"] == []
+
 
 class TestMultiLineMessages:
     """Tests for multi-line message write→read roundtrip.
