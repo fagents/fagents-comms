@@ -326,6 +326,24 @@ class TestAuth:
         assert data["health"]["context_pct"] == 42
         assert data["health"]["status"] == "active"
 
+    def test_whoami_channel_message_count_is_accurate(self, url_and_token):
+        """whoami channels include message_count matching actual messages sent.
+
+        Daemons use whoami to detect activity without reading every channel.
+        The message_count per channel must be accurate — it is how the daemon
+        knows whether to wake for a channel without fetching messages.
+        """
+        url, token = url_and_token
+        _raw_request(url, token, "POST", "/api/channels", {"name": "wai-msgcount"})
+        for msg in ("alpha", "beta", "gamma"):
+            _raw_request(url, token, "POST", "/api/channels/wai-msgcount/messages",
+                         {"message": msg})
+        status, data = _raw_request(url, token, "GET", "/api/whoami")
+        assert status == 200
+        ch = next((c for c in data["channels"] if c["name"] == "wai-msgcount"), None)
+        assert ch is not None
+        assert ch["message_count"] == 3
+
     def test_query_param_auth(self, url_and_token):
         url, token = url_and_token
         # Use query param instead of header
