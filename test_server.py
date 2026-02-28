@@ -1162,6 +1162,26 @@ class TestDeleteChannel:
         s, acl = _raw_request(url, token, "GET", "/api/channels/del-acl/acl")
         assert acl["allow"] == ["*"]  # default when no entry
 
+    def test_delete_does_not_clean_subscriptions(self, url_and_token):
+        """Deleting a channel does NOT remove it from agent subscription lists.
+
+        The server cleans up the channel file, cache, and ACL on delete — but
+        not agent subscriptions. Subscriptions are metadata stored per-agent;
+        the server returns them as-is. Callers must handle stale names.
+        """
+        url, token = url_and_token
+        _raw_request(url, token, "POST", "/api/channels", {"name": "del-subs-test"})
+        _raw_request(url, token, "PUT", "/api/agents/TestBot/channels",
+                     {"channels": ["del-subs-test"]})
+        # Confirm subscription registered
+        _, before = _raw_request(url, token, "GET", "/api/agents/TestBot/channels")
+        assert "del-subs-test" in before["channels"]
+        # Delete the channel
+        _raw_request(url, token, "DELETE", "/api/channels/del-subs-test")
+        # Subscription list still contains the deleted channel name
+        _, after = _raw_request(url, token, "GET", "/api/agents/TestBot/channels")
+        assert "del-subs-test" in after["channels"]
+
 
 class TestSubscriptions:
     """Tests for agent channel subscriptions."""
