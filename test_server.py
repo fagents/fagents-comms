@@ -4517,6 +4517,31 @@ class TestHealthSoulMemory:
         saved = json.loads(_server_module.AGENT_HEALTH_FILE.read_text())
         assert saved["HealthMulti"]["context_pct"] == 90
 
+    def test_partial_health_update_preserves_prior_fields(self, server_info):
+        """A partial health push merges with existing data — prior fields survive.
+
+        The server uses existing.update(data) so a second push that omits fields
+        from the first push must not wipe them. This documents the merge contract
+        that soul_text, memory_text, and any other health fields depend on.
+        """
+        url, _, _ = server_info
+        token = _server_module.add_agent("HealthMerge")
+        # First push: establish multiple fields
+        _raw_request(url, token, "POST",
+                     "/api/agents/HealthMerge/health",
+                     {"context_pct": 80, "tokens": 100000, "soul_text": "I am a turtle."})
+        # Second push: only update status — omit the other fields
+        _raw_request(url, token, "POST",
+                     "/api/agents/HealthMerge/health",
+                     {"status": "idle"})
+        s, data = _raw_request(url, token, "GET",
+                               "/api/agents/HealthMerge/health")
+        assert s == 200
+        assert data["status"] == "idle"          # new field landed
+        assert data["context_pct"] == 80         # survived partial update
+        assert data["tokens"] == 100000          # survived partial update
+        assert data["soul_text"] == "I am a turtle."  # survived partial update
+
 
 class TestAgentsPage:
     """Tests for GET /agents page route."""
