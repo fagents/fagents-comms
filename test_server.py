@@ -156,6 +156,13 @@ def _create_restricted_channel(url, token, name):
     _raw_request(url, token, "PUT", f"/api/channels/{name}/acl", {"allow": ["TestBot"]})
 
 
+def _fetch_app_js(url):
+    """Test helper: fetch /static/app.js and return body as string."""
+    req = urllib.request.Request(f"{url}/static/app.js")
+    with urllib.request.urlopen(req) as resp:
+        return resp.read().decode()
+
+
 # ── Token Management ──────────────────────────────────────────────────
 
 class TestTokenManagement:
@@ -2428,9 +2435,7 @@ class TestChannelCreationUI:
         """Web UI JS includes description input in channel creation dialog."""
         url, token, _ = server_info
         # The static app.js should contain the description input
-        req = urllib.request.Request(f"{url}/static/app.js")
-        with urllib.request.urlopen(req) as resp:
-            js = resp.read().decode()
+        js = _fetch_app_js(url)
         assert 'ncDesc' in js
         assert 'Description' in js or 'description' in js
 
@@ -2621,18 +2626,14 @@ class TestMentions:
     def test_app_js_has_mention_highlighting(self, server_info):
         """app.js includes @mention rendering code."""
         url, token, _ = server_info
-        req = urllib.request.Request(f"{url}/static/app.js")
-        with urllib.request.urlopen(req) as resp:
-            js = resp.read().decode()
+        js = _fetch_app_js(url)
         assert 'mention' in js.lower()
         assert '@' in js
 
     def test_app_js_has_autocomplete(self, server_info):
         """app.js includes @mention autocomplete dropdown."""
         url, token, _ = server_info
-        req = urllib.request.Request(f"{url}/static/app.js")
-        with urllib.request.urlopen(req) as resp:
-            js = resp.read().decode()
+        js = _fetch_app_js(url)
         assert 'mentionAC' in js
         assert 'acPick' in js
 
@@ -2784,9 +2785,7 @@ class TestChannelSidebar:
     def test_channels_are_draggable(self, server_info):
         """app.js sets draggable=true on channel sidebar elements."""
         url, token, _ = server_info
-        req = urllib.request.Request(f"{url}/static/app.js")
-        with urllib.request.urlopen(req) as resp:
-            js = resp.read().decode()
+        js = _fetch_app_js(url)
         assert 'draggable' in js
         assert 'dragstart' in js
         assert 'fagent-ch-order' in js
@@ -2794,9 +2793,7 @@ class TestChannelSidebar:
     def test_order_persisted_via_localstorage(self, server_info):
         """app.js uses localStorage for channel order persistence."""
         url, token, _ = server_info
-        req = urllib.request.Request(f"{url}/static/app.js")
-        with urllib.request.urlopen(req) as resp:
-            js = resp.read().decode()
+        js = _fetch_app_js(url)
         assert 'localStorage.setItem' in js
         assert 'localStorage.getItem' in js
 
@@ -2982,9 +2979,7 @@ class TestSearchUI:
     def test_search_js_functions(self, server_info):
         """app.js has search functions."""
         url, token, _ = server_info
-        req = urllib.request.Request(f"{url}/static/app.js")
-        with urllib.request.urlopen(req) as resp:
-            js = resp.read().decode()
+        js = _fetch_app_js(url)
         assert 'toggleSearch' in js
         assert 'searchMessages' in js
         assert 'closeSearch' in js
@@ -2996,18 +2991,14 @@ class TestUnreadBadges:
     def test_app_js_has_unread_polling(self, server_info):
         """app.js includes unread badge polling code."""
         url, token, _ = server_info
-        req = urllib.request.Request(f"{url}/static/app.js")
-        with urllib.request.urlopen(req) as resp:
-            js = resp.read().decode()
+        js = _fetch_app_js(url)
         assert 'pollUnread' in js
         assert 'ch-unread' in js
 
     def test_marks_current_channel_read_on_load(self, server_info):
         """app.js marks current channel as read on page load."""
         url, token, _ = server_info
-        req = urllib.request.Request(f"{url}/static/app.js")
-        with urllib.request.urlopen(req) as resp:
-            js = resp.read().decode()
+        js = _fetch_app_js(url)
         assert '/read' in js
         assert 'PUT' in js
 
