@@ -141,6 +141,15 @@ def resolve_token(raw_token):
     return tokens.get(h)
 
 
+def _set_agent_type(name, agent_type):
+    """Persist agent type to profiles. Creates profile entry if absent."""
+    profiles = load_agent_profiles()
+    if name not in profiles:
+        profiles[name] = {}
+    profiles[name]["type"] = agent_type
+    save_agent_profiles(profiles)
+
+
 # ── Channel ACL ────────────────────────────────────────────────────
 
 _ACL_CACHE = None  # in-memory cache, invalidated on save
@@ -1168,14 +1177,9 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
                 self.send_json({"ok": False, "error": "Invalid name"}, 400)
                 return
             token = add_agent(name)
-            # Set agent type if provided
             agent_type = data.get("type", "ai")
             if agent_type in AGENT_TYPES:
-                profiles = load_agent_profiles()
-                if name not in profiles:
-                    profiles[name] = {}
-                profiles[name]["type"] = agent_type
-                save_agent_profiles(profiles)
+                _set_agent_type(name, agent_type)
             print(f"Agent '{name}' created via API (type: {agent_type})")
             self.send_json({"ok": True, "agent": name, "token": token})
             return
@@ -1471,12 +1475,7 @@ def main():
             print("Invalid agent name", file=sys.stderr)
             sys.exit(1)
         token = add_agent(name)
-        # Save agent type to profile
-        profiles = load_agent_profiles()
-        if name not in profiles:
-            profiles[name] = {}
-        profiles[name]["type"] = args.type
-        save_agent_profiles(profiles)
+        _set_agent_type(name, args.type)
         print(f"Agent '{name}' added (type: {args.type}).")
         print(f"Token: {token}")
         print(f"Use: curl -H 'Authorization: Bearer {token}' http://localhost:{args.port}/api/channels/general/messages")
