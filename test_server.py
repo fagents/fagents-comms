@@ -17,11 +17,13 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 import pytest
 
 # We need to patch paths before importing server, so tests use tmpdir
 import server as _server_module
+from client import CommsClient
 from ui import (
     _color_for_sender, _render_markdown, _render_quote_line, _split_quotes,
     page_html, render_activity_html, render_agent_panels_html, render_messages_html,
@@ -106,7 +108,6 @@ def server_info(test_dir):
 @pytest.fixture
 def client(server_info):
     """Return a CommsClient connected to the test server."""
-    from client import CommsClient
     url, token, _ = server_info
     return CommsClient(url=url, token=token)
 
@@ -757,7 +758,7 @@ class TestClientLibrary:
         assert messages[-1]["message"] == "ping"
 
     def test_frame_messages(self):
-        from client import CommsClient
+
         messages = [
             {"sender": "Bot", "ts": "2026-02-12 14:00 EET",
              "channel": "test", "message": "hello"},
@@ -768,7 +769,7 @@ class TestClientLibrary:
         assert "--- END COMMS MESSAGE ---" in framed
 
     def test_client_error_on_bad_token(self, server_info):
-        from client import CommsClient
+
         url, _, _ = server_info
         bad_client = CommsClient(url=url, token="invalid-token")
         with pytest.raises(RuntimeError, match="HTTP 401"):
@@ -816,11 +817,11 @@ class TestClientLibrary:
         assert "client-list-ch" in names
 
     def test_frame_messages_empty(self):
-        from client import CommsClient
+
         assert CommsClient.frame_messages([]) == ""
 
     def test_frame_messages_missing_fields(self):
-        from client import CommsClient
+
         messages = [{"message": "bare"}]
         framed = CommsClient.frame_messages(messages)
         assert "bare" in framed
@@ -1861,19 +1862,19 @@ class TestHelperFunctions:
         assert _server_module.path_param("/api/agents/FTW/health", index=3) == "FTW"
 
     def test_load_json_missing_file(self, test_dir):
-        from pathlib import Path
+
         result = _server_module._load_json(Path(test_dir) / "nonexistent.json")
         assert result == {}
 
     def test_load_json_corrupt_file(self, test_dir):
-        from pathlib import Path
+
         bad_file = Path(test_dir) / "corrupt.json"
         bad_file.write_text("not json {{{")
         result = _server_module._load_json(bad_file)
         assert result == {}
 
     def test_save_and_load_json_roundtrip(self, test_dir):
-        from pathlib import Path
+
         path = Path(test_dir) / "roundtrip.json"
         data = {"key": "value", "list": [1, 2, 3]}
         _server_module._save_json(path, data)
@@ -1882,7 +1883,7 @@ class TestHelperFunctions:
 
     def test_save_json_with_mode(self, test_dir):
         import stat
-        from pathlib import Path
+
         path = Path(test_dir) / "secure.json"
         _server_module._save_json(path, {"secret": True}, mode=0o600)
         mode = path.stat().st_mode & 0o777
