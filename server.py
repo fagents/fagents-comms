@@ -527,6 +527,16 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def send_html(self, html, raw_token):
+        body = html.encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+        self.set_token_cookie(raw_token)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def require_auth(self):
         """Authenticate request. Returns (agent, raw_token) or sends 401 and returns (None, None)."""
         raw_token = self.get_token()
@@ -705,34 +715,20 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             agent_cfg = all_agent_config.get(agent, {})
             activity_follow = agent_cfg.get("activity_follow", [])
             agent_profiles = {n: get_agent_profile(n) for n in agent_names}
-            content = page_html(channel_name, messages, channels,
-                                agent_names, AGENT_HEALTH, AGENT_ACTIVITY,
-                                channel_acl, agent, channel_description,
-                                total_count=total_count,
-                                activity_follow=activity_follow,
-                                agent_profiles=agent_profiles,
-                                agent_configs=all_agent_config).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
-            self.set_token_cookie(raw_token)
-            self.send_header("Content-Length", str(len(content)))
-            self.end_headers()
-            self.wfile.write(content)
+            self.send_html(page_html(channel_name, messages, channels,
+                                     agent_names, AGENT_HEALTH, AGENT_ACTIVITY,
+                                     channel_acl, agent, channel_description,
+                                     total_count=total_count,
+                                     activity_follow=activity_follow,
+                                     agent_profiles=agent_profiles,
+                                     agent_configs=all_agent_config), raw_token)
 
         # ── Agents page ──
         elif path == "/agents":
             tokens = load_tokens()
             agent_names = sorted(set(tokens.values()))
-            content = agents_page_html(agent_names, AGENT_HEALTH,
-                                       AGENT_ACTIVITY, agent).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
-            self.set_token_cookie(raw_token)
-            self.send_header("Content-Length", str(len(content)))
-            self.end_headers()
-            self.wfile.write(content)
+            self.send_html(agents_page_html(agent_names, AGENT_HEALTH,
+                                            AGENT_ACTIVITY, agent), raw_token)
 
         # ── API: list channels ──
         elif path == "/api/channels":
