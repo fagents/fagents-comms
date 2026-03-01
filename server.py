@@ -470,6 +470,11 @@ def sanitize_name(raw):
     return _SAFE_NAME_RE.sub("", raw)
 
 
+def normalize_channel_name(raw):
+    """Normalize raw input to a valid channel name: strip, spaces→hyphens, sanitize, lowercase."""
+    return sanitize_name(re.sub(r"\s+", "-", raw.strip())).lower()
+
+
 def path_param(path, index=3):
     """Extract and sanitize a path segment (default: /api/foo/{param}/...).
     Returns the sanitized string, or empty string if invalid."""
@@ -1080,9 +1085,7 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
         if channel_name == "general":
             self.send_text("Cannot rename #general", 403)
             return
-        new_name = data.get("name", "").strip()
-        new_name = re.sub(r"\s+", "-", new_name)
-        new_name = sanitize_name(new_name).lower()
+        new_name = normalize_channel_name(data.get("name", ""))
         if not new_name:
             self.send_text("Invalid new channel name", 400)
             return
@@ -1141,9 +1144,7 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
 
         # ── API: create channel ──
         if path == "/api/channels":
-            name = data.get("name", "").strip()
-            name = re.sub(r"\s+", "-", name)  # spaces → hyphens
-            name = sanitize_name(name).lower()
+            name = normalize_channel_name(data.get("name", ""))
             if not name:
                 self.send_text("Invalid channel name", 400)
                 return
