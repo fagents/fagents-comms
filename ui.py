@@ -140,6 +140,9 @@ def _split_quotes(text):
     return quote_html, body_lines
 
 
+_EMPTY_AGENTS_HTML = '<div class="agent-empty">No agents registered</div>'
+
+
 def _ctx_bar_class(pct):
     """Return CSS class for a context % bar: healthy/warming/heavy/critical."""
     return next(
@@ -195,7 +198,7 @@ def render_agent_panels_html(agent_names, agent_health):
     agent_health: {name: {context_pct, tokens, ...}} — may be empty or partial
     """
     if not agent_names:
-        return '<div class="agent-empty">No agents registered</div>'
+        return _EMPTY_AGENTS_HTML
     panels = []
     for name in agent_names:
         ename = html.escape(name)
@@ -233,7 +236,7 @@ def render_agent_panels_html(agent_names, agent_health):
 def render_compact_agent_panels_html(agent_names, agent_health, agent_profiles=None):
     """Render simplified agent list for chat sidebar — name + type + context/role."""
     if not agent_names:
-        return '<div class="agent-empty">No agents registered</div>'
+        return _EMPTY_AGENTS_HTML
     profiles = agent_profiles or {}
     panels = []
     for name in agent_names:
