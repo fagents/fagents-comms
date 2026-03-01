@@ -22,6 +22,7 @@ import pytest
 
 # We need to patch paths before importing server, so tests use tmpdir
 import server as _server_module
+from ui import _render_quote_line, render_messages_html
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────
@@ -847,7 +848,6 @@ class TestReplyQuote:
     """Tests for the reply/quote rendering feature."""
 
     def test_render_quote_line_with_sender(self):
-        from ui import _render_quote_line
         result = _render_quote_line("> @Juho: hello world")
         assert "<blockquote>" in result
         assert "quote-sender" in result
@@ -855,20 +855,17 @@ class TestReplyQuote:
         assert "hello world" in result
 
     def test_render_quote_line_plain(self):
-        from ui import _render_quote_line
         result = _render_quote_line("> just a plain quote")
         assert "<blockquote>" in result
         assert "just a plain quote" in result
         assert "quote-sender" not in result
 
     def test_render_quote_line_escapes_html(self):
-        from ui import _render_quote_line
         result = _render_quote_line("> @Evil: <script>alert(1)</script>")
         assert "<script>" not in result
         assert "&lt;script&gt;" in result
 
     def test_render_messages_with_quote(self):
-        from ui import render_messages_html
         messages = [{
             "sender": "FTW",
             "ts": "2026-02-12 16:30",
@@ -881,7 +878,6 @@ class TestReplyQuote:
         assert "My reply here" in html
 
     def test_render_messages_without_quote(self):
-        from ui import render_messages_html
         messages = [{
             "sender": "Juho",
             "ts": "2026-02-12 16:00",
@@ -892,7 +888,6 @@ class TestReplyQuote:
         assert "Just a normal message" in html
 
     def test_render_messages_reply_button_present(self):
-        from ui import render_messages_html
         messages = [{
             "sender": "FTL",
             "ts": "2026-02-12 16:00",
@@ -906,7 +901,6 @@ class TestReplyQuote:
 
     def test_render_messages_quote_body_separation(self):
         """Quote lines and body should be separated — no quote text in body."""
-        from ui import render_messages_html
         messages = [{
             "sender": "FTW",
             "ts": "2026-02-12 16:30",
@@ -921,7 +915,6 @@ class TestReplyQuote:
         assert "Body part" not in bq.group()
 
     def test_render_messages_multiline_quote(self):
-        from ui import render_messages_html
         messages = [{
             "sender": "FTW",
             "ts": "2026-02-12 16:30",
@@ -932,7 +925,6 @@ class TestReplyQuote:
 
     def test_reply_button_escapes_quotes_in_text(self):
         """Reply button data attributes must survive quotes in message text."""
-        from ui import render_messages_html
         messages = [{
             "sender": "Juho",
             "ts": "2026-02-12 16:30",
@@ -950,7 +942,6 @@ class TestReplyQuote:
 
     def test_reply_button_on_polled_message_format(self):
         """Verify server-rendered reply buttons use setReply directly (not handleReply)."""
-        from ui import render_messages_html
         messages = [{
             "sender": "FTW",
             "ts": "2026-02-12 16:30",
