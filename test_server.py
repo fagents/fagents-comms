@@ -22,7 +22,11 @@ import pytest
 
 # We need to patch paths before importing server, so tests use tmpdir
 import server as _server_module
-from ui import _render_markdown, _render_quote_line, _split_quotes, render_messages_html
+from ui import (
+    _color_for_sender, _render_markdown, _render_quote_line, _split_quotes,
+    page_html, render_activity_html, render_agent_panels_html, render_messages_html,
+    DEFAULT_COLOR, SENDER_COLORS,
+)
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────
@@ -1727,20 +1731,17 @@ class TestWriteEndpointEdgeCases:
 class TestUIRendering:
 
     def test_render_agent_panels_no_agents(self):
-        from ui import render_agent_panels_html
         result = render_agent_panels_html([], {})
         assert "No agents registered" in result
 
     def test_render_agent_panels_agents_without_health(self):
         """Registered agents with no health data show 'offline'."""
-        from ui import render_agent_panels_html
         result = render_agent_panels_html(["FTL", "FTW"], {})
         assert "FTW" in result
         assert "FTL" in result
         assert result.count("offline") == 2
 
     def test_render_agent_panels_single_agent(self):
-        from ui import render_agent_panels_html
         health = {"FTW": {"context_pct": 45, "tokens": 90000, "status": "running",
                           "last_tool": "Read", "reported_at": time.time()}}
         result = render_agent_panels_html(["FTW"], health)
@@ -1752,7 +1753,6 @@ class TestUIRendering:
 
     def test_render_agent_panels_context_classes(self):
         """Different context percentages get different CSS classes."""
-        from ui import render_agent_panels_html
         for pct, expected_class in [(10, "ctx-healthy"), (55, "ctx-warming"),
                                      (85, "ctx-heavy"), (95, "ctx-critical")]:
             health = {"Bot": {"context_pct": pct, "tokens": 50000, "status": "ok"}}
@@ -1760,7 +1760,6 @@ class TestUIRendering:
             assert expected_class in result, f"pct={pct} should have class {expected_class}"
 
     def test_render_agent_panels_multiple_agents(self):
-        from ui import render_agent_panels_html
         health = {
             "FTW": {"context_pct": 30, "tokens": 60000, "status": "running"},
             "FTL": {"context_pct": 70, "tokens": 140000, "status": "idle"},
@@ -1771,7 +1770,6 @@ class TestUIRendering:
 
     def test_render_agent_panels_partial_health(self):
         """One agent has health, one doesn't — both shown."""
-        from ui import render_agent_panels_html
         health = {"FTW": {"context_pct": 30, "tokens": 60000, "status": "running"}}
         result = render_agent_panels_html(["FTL", "FTW"], health)
         assert "FTW" in result
@@ -1780,12 +1778,10 @@ class TestUIRendering:
         assert "offline" in result  # FTL has no health
 
     def test_render_activity_empty(self):
-        from ui import render_activity_html
         result = render_activity_html({})
         assert "No activity yet" in result
 
     def test_render_activity_with_events(self):
-        from ui import render_activity_html
         activity = {
             "FTW": [
                 {"ts": "2026-02-12 14:00 EET", "type": "tool", "summary": "Read file"},
@@ -1799,7 +1795,6 @@ class TestUIRendering:
 
     def test_render_activity_separator_between_agents(self):
         """Agent transitions get a visual separator."""
-        from ui import render_activity_html
         activity = {
             "FTW": [{"ts": "2026-02-12 14:00 EET", "type": "tool", "summary": "a"}],
             "FTL": [{"ts": "2026-02-12 14:01 EET", "type": "tool", "summary": "b"}],
@@ -1808,14 +1803,12 @@ class TestUIRendering:
         assert "act-sep" in result
 
     def test_render_messages_with_colors(self):
-        from ui import render_messages_html, SENDER_COLORS
         messages = [{"sender": "Juho", "ts": "2026-02-12 14:00 EET", "message": "hello"}]
         result = render_messages_html(messages)
         assert SENDER_COLORS["Juho"]["border"] in result
         assert "Juho" in result
 
     def test_render_messages_unknown_sender(self):
-        from ui import render_messages_html, _color_for_sender
         messages = [{"sender": "Unknown", "ts": "2026-02-12 14:00 EET", "message": "hi"}]
         result = render_messages_html(messages)
         # Unknown sender gets an auto-generated color, not grey default
@@ -1823,7 +1816,6 @@ class TestUIRendering:
 
     def test_page_html_contains_all_sections(self):
         """Full page_html output has chat, sidebar, agents, send bar."""
-        from ui import page_html
         html = page_html("general", [], [{"name": "general", "message_count": 0}],
                          ["TestBot"], {}, {})
         assert "fagents-comms" in html
@@ -2405,13 +2397,11 @@ class TestAutoSenderColors:
 
     def test_hardcoded_colors_preserved(self):
         """Known agents get their hardcoded colors."""
-        from ui import _color_for_sender, SENDER_COLORS
         for name in ["FTW", "FTL", "Juho", "System"]:
             assert _color_for_sender(name) == SENDER_COLORS[name]
 
     def test_unknown_agent_gets_color(self):
         """Unknown agents get a generated color, not grey default."""
-        from ui import _color_for_sender, DEFAULT_COLOR
         color = _color_for_sender("Turtle316")
         assert color != DEFAULT_COLOR
         assert color["bg"].startswith("#")
@@ -2420,14 +2410,12 @@ class TestAutoSenderColors:
 
     def test_color_is_deterministic(self):
         """Same name always produces the same color."""
-        from ui import _color_for_sender
         c1 = _color_for_sender("WifeTurtle")
         c2 = _color_for_sender("WifeTurtle")
         assert c1 == c2
 
     def test_different_names_get_different_colors(self):
         """Different names get different colors (probabilistic but reliable)."""
-        from ui import _color_for_sender
         c1 = _color_for_sender("AgentAlpha")
         c2 = _color_for_sender("AgentBeta")
         assert c1["border"] != c2["border"]
