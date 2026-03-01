@@ -165,6 +165,13 @@ def _fetch_app_js(url):
         return resp.read().decode()
 
 
+def _set_agent_type(name, type_str):
+    """Test helper: set an agent's profile type."""
+    profiles = _server_module.load_agent_profiles()
+    profiles[name] = {"type": type_str}
+    _server_module.save_agent_profiles(profiles)
+
+
 # ── Token Management ──────────────────────────────────────────────────
 
 class TestTokenManagement:
@@ -4722,9 +4729,7 @@ class TestAgentProfiles:
         """GET /api/agents includes type field from profiles."""
         url, token, name = server_info
         # Set profile type
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "ai"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "ai")
         s, data = _raw_request(url, token, "GET", "/api/agents")
         assert s == 200
         assert name in data
@@ -4819,9 +4824,7 @@ class TestGroupMentions:
         """@humans in message triggers mention for human-type agent."""
         url, token, name = server_info
         token2, _ = second_agent
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "human"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "human")
         _raw_request(url, token, "POST", "/api/channels", {"name": "grp-hum"})
         _raw_request(url, token, "PUT", "/api/channels/grp-hum/read", {})
         _raw_request(url, token2, "POST", "/api/channels/grp-hum/messages",
@@ -4836,9 +4839,7 @@ class TestGroupMentions:
         """@humans does NOT trigger for AI-type agent."""
         url, token, name = server_info
         token2, _ = second_agent
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "ai"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "ai")
         _raw_request(url, token, "POST", "/api/channels", {"name": "grp-noai"})
         _raw_request(url, token, "PUT", "/api/channels/grp-noai/read", {})
         _raw_request(url, token2, "POST", "/api/channels/grp-noai/messages",
@@ -4852,9 +4853,7 @@ class TestGroupMentions:
         """@ais in message triggers mention for AI-type agent."""
         url, token, name = server_info
         token2, _ = second_agent
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "ai"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "ai")
         _raw_request(url, token, "POST", "/api/channels", {"name": "grp-ai"})
         _raw_request(url, token, "PUT", "/api/channels/grp-ai/read", {})
         _raw_request(url, token2, "POST", "/api/channels/grp-ai/messages",
@@ -4868,9 +4867,7 @@ class TestGroupMentions:
         """@ais does NOT trigger for human-type agent."""
         url, token, name = server_info
         token2, _ = second_agent
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "human"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "human")
         _raw_request(url, token, "POST", "/api/channels", {"name": "grp-nohum"})
         _raw_request(url, token, "PUT", "/api/channels/grp-nohum/read", {})
         _raw_request(url, token2, "POST", "/api/channels/grp-nohum/messages",
@@ -4884,9 +4881,7 @@ class TestGroupMentions:
         """Direct @name mention still works alongside group mentions."""
         url, token, name = server_info
         token2, _ = second_agent
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "human"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "human")
         _raw_request(url, token, "POST", "/api/channels", {"name": "grp-both"})
         _raw_request(url, token, "PUT", "/api/channels/grp-both/read", {})
         _raw_request(url, token2, "POST", "/api/channels/grp-both/messages",
@@ -4904,10 +4899,8 @@ class TestTypeFilter:
         """GET /api/agents?type=human returns only human agents."""
         url, token, name = server_info
         _, name2 = second_agent
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "human"}
-        profiles[name2] = {"type": "ai"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "human")
+        _set_agent_type(name2, "ai")
         s, data = _raw_request(url, token, "GET", "/api/agents?type=human")
         assert s == 200
         assert name in data
@@ -4917,10 +4910,8 @@ class TestTypeFilter:
         """GET /api/agents?type=ai returns only AI agents."""
         url, token, name = server_info
         _, name2 = second_agent
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "human"}
-        profiles[name2] = {"type": "ai"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "human")
+        _set_agent_type(name2, "ai")
         s, data = _raw_request(url, token, "GET", "/api/agents?type=ai")
         assert s == 200
         assert name not in data
@@ -4938,10 +4929,8 @@ class TestTypeFilter:
         """GET /api/agents/list?type=human returns only human names."""
         url, token, name = server_info
         _, name2 = second_agent
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "human"}
-        profiles[name2] = {"type": "ai"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "human")
+        _set_agent_type(name2, "ai")
         s, data = _raw_request(url, token, "GET", "/api/agents/list?type=human")
         assert s == 200
         assert name in data
@@ -4974,9 +4963,7 @@ class TestTypeAwareACL:
     def test_humans_acl_grants_human_access(self, server_info, second_agent):
         """Channel with allow=[@humans] is accessible by human agents."""
         url, token, name = server_info
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "human"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "human")
         _raw_request(url, token, "POST", "/api/channels", {"name": "human-only"})
         acl = _server_module.load_channels_acl()
         acl["human-only"] = {"allow": ["@humans"]}
@@ -4988,9 +4975,7 @@ class TestTypeAwareACL:
         """Channel with allow=[@humans] blocks AI agents."""
         url, token, name = server_info
         token2, name2 = second_agent
-        profiles = _server_module.load_agent_profiles()
-        profiles[name2] = {"type": "ai"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name2, "ai")
         _raw_request(url, token, "POST", "/api/channels", {"name": "human-only2"})
         acl = _server_module.load_channels_acl()
         acl["human-only2"] = {"allow": ["@humans"]}
@@ -5001,9 +4986,7 @@ class TestTypeAwareACL:
     def test_ais_acl_grants_ai_access(self, server_info, second_agent):
         """Channel with allow=[@ais] is accessible by AI agents."""
         url, token, name = server_info
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "ai"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "ai")
         _raw_request(url, token, "POST", "/api/channels", {"name": "ai-only"})
         acl = _server_module.load_channels_acl()
         acl["ai-only"] = {"allow": ["@ais"]}
@@ -5015,10 +4998,8 @@ class TestTypeAwareACL:
         """Channel with allow=[@humans, SpecificAI] works for both."""
         url, token, name = server_info
         token2, name2 = second_agent
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "human"}
-        profiles[name2] = {"type": "ai"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "human")
+        _set_agent_type(name2, "ai")
         _raw_request(url, token, "POST", "/api/channels", {"name": "mixed-acl"})
         acl = _server_module.load_channels_acl()
         acl["mixed-acl"] = {"allow": ["@humans", name2]}
@@ -5036,10 +5017,8 @@ class TestWriteAllowACL:
         """Channel with allow=[@humans], write_allow=[@ais]: AI can write but not read."""
         url, token, name = server_info
         token2, name2 = second_agent
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "human"}
-        profiles[name2] = {"type": "ai"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "human")
+        _set_agent_type(name2, "ai")
         _raw_request(url, token, "POST", "/api/channels", {"name": "wa-readblock"})
         acl = _server_module.load_channels_acl()
         acl["wa-readblock"] = {"allow": ["@humans"], "write_allow": ["@ais"]}
@@ -5055,9 +5034,7 @@ class TestWriteAllowACL:
     def test_write_allow_human_can_read(self, server_info, second_agent):
         """Channel with allow=[@humans], write_allow=[@ais]: human can read."""
         url, token, name = server_info
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "human"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "human")
         _raw_request(url, token, "POST", "/api/channels", {"name": "wa-humanread"})
         acl = _server_module.load_channels_acl()
         acl["wa-humanread"] = {"allow": ["@humans"], "write_allow": ["@ais"]}
@@ -5107,9 +5084,7 @@ class TestWriteAllowACL:
         the read-only-for-humans use case.
         """
         url, token, name = server_info
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "human"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "human")
         _raw_request(url, token, "POST", "/api/channels", {"name": "wa-readonly-human"})
         acl = _server_module.load_channels_acl()
         acl["wa-readonly-human"] = {"allow": ["*"], "write_allow": ["@ais"]}
@@ -5132,10 +5107,8 @@ class TestTypeAwareSearch:
         """Search with from_type=human returns only messages from human agents."""
         url, token, name = server_info
         token2, name2 = second_agent
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "human"}
-        profiles[name2] = {"type": "ai"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "human")
+        _set_agent_type(name2, "ai")
         _raw_request(url, token, "POST", "/api/channels", {"name": "srch-type"})
         _raw_request(url, token, "POST", "/api/channels/srch-type/messages",
                      {"message": "human says qxdeploy77 looks good"})
@@ -5151,10 +5124,8 @@ class TestTypeAwareSearch:
         """Search with from_type=ai returns only messages from AI agents."""
         url, token, name = server_info
         token2, name2 = second_agent
-        profiles = _server_module.load_agent_profiles()
-        profiles[name] = {"type": "human"}
-        profiles[name2] = {"type": "ai"}
-        _server_module.save_agent_profiles(profiles)
+        _set_agent_type(name, "human")
+        _set_agent_type(name2, "ai")
         _raw_request(url, token, "POST", "/api/channels", {"name": "srch-type2"})
         _raw_request(url, token, "POST", "/api/channels/srch-type2/messages",
                      {"message": "human qzreview88 needed"})
