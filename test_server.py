@@ -136,6 +136,15 @@ def _raw_request(url, token, method, path, data=None):
             return e.code, raw
 
 
+def _remove_agent(name):
+    """Test helper: remove an agent from tokens by name."""
+    tokens = _server_module.load_tokens()
+    hashes = [h for h, n in tokens.items() if n == name]
+    for h in hashes:
+        del tokens[h]
+    _server_module.save_tokens(tokens)
+
+
 # ── Token Management ──────────────────────────────────────────────────
 
 class TestTokenManagement:
@@ -162,11 +171,7 @@ class TestTokenManagement:
         assert token is not None
         assert len(token) > 20
         assert _server_module.resolve_token(token) == "TempAgent"
-        # Cleanup: remove agent
-        tokens = _server_module.load_tokens()
-        h = _server_module._hash_token(token)
-        del tokens[h]
-        _server_module.save_tokens(tokens)
+        _remove_agent("TempAgent")
 
     def test_add_agent_rotation(self, test_dir):
         """Adding an agent that already exists rotates the token."""
@@ -175,22 +180,13 @@ class TestTokenManagement:
         assert t1 != t2
         assert _server_module.resolve_token(t1) is None  # old token dead
         assert _server_module.resolve_token(t2) == "RotateMe"
-        # Cleanup
-        tokens = _server_module.load_tokens()
-        h = _server_module._hash_token(t2)
-        del tokens[h]
-        _server_module.save_tokens(tokens)
+        _remove_agent("RotateMe")
 
     def test_tokens_file_permissions(self, test_dir):
         _server_module.add_agent("PermCheck")
         stat = os.stat(_server_module.TOKENS_FILE)
         assert oct(stat.st_mode & 0o777) == "0o600"
-        # Cleanup
-        tokens = _server_module.load_tokens()
-        hashes = [h for h, n in tokens.items() if n == "PermCheck"]
-        for h in hashes:
-            del tokens[h]
-        _server_module.save_tokens(tokens)
+        _remove_agent("PermCheck")
 
 
 # ── Channel Operations ────────────────────────────────────────────────
