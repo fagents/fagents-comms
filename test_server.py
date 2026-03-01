@@ -146,6 +146,12 @@ def _remove_agent(name):
     _server_module.save_tokens(tokens)
 
 
+def _create_restricted_channel(url, token, name):
+    """Test helper: create a channel and restrict it to TestBot only."""
+    _raw_request(url, token, "POST", "/api/channels", {"name": name})
+    _raw_request(url, token, "PUT", f"/api/channels/{name}/acl", {"allow": ["TestBot"]})
+
+
 # ── Token Management ──────────────────────────────────────────────────
 
 class TestTokenManagement:
@@ -1007,10 +1013,7 @@ class TestChannelACL:
         """Only listed agents can access a restricted channel."""
         url, token = url_and_token
         token2, _ = second_agent
-        _raw_request(url, token, "POST", "/api/channels", {"name": "acl-restricted"})
-        # Restrict to TestBot only
-        _raw_request(url, token, "PUT", "/api/channels/acl-restricted/acl",
-                     {"allow": ["TestBot"]})
+        _create_restricted_channel(url, token, "acl-restricted")
         s1, _ = _raw_request(url, token, "GET", "/api/channels/acl-restricted/messages")
         assert s1 == 200
         s2, _ = _raw_request(url, token2, "GET", "/api/channels/acl-restricted/messages")
@@ -1020,9 +1023,7 @@ class TestChannelACL:
         """Unlisted agents can't write to restricted channels."""
         url, token = url_and_token
         token2, _ = second_agent
-        _raw_request(url, token, "POST", "/api/channels", {"name": "acl-nowrite"})
-        _raw_request(url, token, "PUT", "/api/channels/acl-nowrite/acl",
-                     {"allow": ["TestBot"]})
+        _create_restricted_channel(url, token, "acl-nowrite")
         s, _ = _raw_request(url, token2, "POST", "/api/channels/acl-nowrite/messages",
                             {"message": "should fail"})
         assert s == 403
@@ -1031,9 +1032,7 @@ class TestChannelACL:
         """Channel list only shows accessible channels."""
         url, token = url_and_token
         token2, _ = second_agent
-        _raw_request(url, token, "POST", "/api/channels", {"name": "acl-visible"})
-        _raw_request(url, token, "PUT", "/api/channels/acl-visible/acl",
-                     {"allow": ["TestBot"]})
+        _create_restricted_channel(url, token, "acl-visible")
         # OtherBot should NOT see acl-visible in list
         s, channels = _raw_request(url, token2, "GET", "/api/channels")
         assert s == 200
@@ -1074,9 +1073,7 @@ class TestChannelACL:
         """Can't modify ACL of a channel you're not in."""
         url, token = url_and_token
         token2, _ = second_agent
-        _raw_request(url, token, "POST", "/api/channels", {"name": "acl-noedit"})
-        _raw_request(url, token, "PUT", "/api/channels/acl-noedit/acl",
-                     {"allow": ["TestBot"]})
+        _create_restricted_channel(url, token, "acl-noedit")
         # OtherBot tries to modify — should be denied
         s, _ = _raw_request(url, token2, "PUT", "/api/channels/acl-noedit/acl",
                             {"allow": ["OtherBot"]})
@@ -1086,9 +1083,7 @@ class TestChannelACL:
         """Web UI only shows channels the agent can access."""
         url, token = url_and_token
         token2, _ = second_agent
-        _raw_request(url, token, "POST", "/api/channels", {"name": "acl-hidden"})
-        _raw_request(url, token, "PUT", "/api/channels/acl-hidden/acl",
-                     {"allow": ["TestBot"]})
+        _create_restricted_channel(url, token, "acl-hidden")
         # OtherBot's web UI should not show acl-hidden
         req = urllib.request.Request(f"{url}/?token={token2}")
         with urllib.request.urlopen(req) as resp:
@@ -1099,9 +1094,7 @@ class TestChannelACL:
         """Web UI redirects to accessible channel when trying to view restricted one."""
         url, token = url_and_token
         token2, _ = second_agent
-        _raw_request(url, token, "POST", "/api/channels", {"name": "acl-deny-ui"})
-        _raw_request(url, token, "PUT", "/api/channels/acl-deny-ui/acl",
-                     {"allow": ["TestBot"]})
+        _create_restricted_channel(url, token, "acl-deny-ui")
         # Use non-redirecting handler to check the 302
         class NoRedirect(urllib.request.HTTPErrorProcessor):
             def http_response(self, request, response):
