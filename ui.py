@@ -56,6 +56,11 @@ def _color_for_sender(name):
     return color
 
 
+def _render_agent_pill(name):
+    """Render agent name as a colored ch-member span."""
+    return f'<span class="ch-member" style="color:{_color_for_sender(name)["name"]}">{html.escape(name)}</span>'
+
+
 def _hsl_to_hex(h, s, l):
     """Convert HSL (h: 0-360, s: 0-100, l: 0-100) to hex color string."""
     s /= 100
@@ -277,11 +282,10 @@ def _render_follow_pills(agent_names, activity_follow):
     followed = activity_follow if activity_follow else agent_names
     if not followed:
         return '<span style="color:#484f58">All agents</span>'
-    return "".join(
-        f'<span class="ch-member" style="color:{_color_for_sender(a)["name"]}">'
-        f'{html.escape(a)}</span>'
-        for a in sorted(followed) if a in agent_names
-    ) or '<span style="color:#484f58">All agents</span>'
+    return (
+        "".join(_render_agent_pill(a) for a in sorted(followed) if a in agent_names)
+        or '<span style="color:#484f58">All agents</span>'
+    )
 
 
 def render_activity_html(agent_activity):
@@ -931,11 +935,7 @@ def page_html(channel_name, messages, channels_list, agent_names,
     if "*" in allow_list:
         access_html = '<span class="ch-member">everyone</span>'
     else:
-        access_html = "".join(
-            f'<span class="ch-member" style="color:{_color_for_sender(a)["name"]}">'
-            f'{html.escape(a)}</span>'
-            for a in sorted(allow_list)
-        )
+        access_html = "".join(_render_agent_pill(a) for a in sorted(allow_list))
 
     # Wake list (agents whose wake_channels include this channel)
     wake_agents = []
@@ -947,11 +947,7 @@ def page_html(channel_name, messages, channels_list, agent_names,
             if channel_name.lower() in channels or "*" in channels:
                 wake_agents.append(name)
     if wake_agents:
-        wake_html = "".join(
-            f'<span class="ch-member" style="color:{_color_for_sender(a)["name"]}">'
-            f'{html.escape(a)}</span>'
-            for a in sorted(wake_agents)
-        )
+        wake_html = "".join(_render_agent_pill(a) for a in sorted(wake_agents))
     else:
         wake_html = '<span class="ch-member" style="color:#484f58">none</span>'
 
