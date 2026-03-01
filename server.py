@@ -472,6 +472,17 @@ def path_param(path, index=3):
 
 # ── Git log ────────────────────────────────────────────────────────
 
+def _rename_in_channel_lists(data, old_name, new_name):
+    """Rename a channel in all agents' channel lists in-place. Returns True if any changed."""
+    changed = False
+    for ag in data:
+        new_list = [new_name if ch == old_name else ch for ch in data[ag]]
+        if new_list != data[ag]:
+            data[ag] = new_list
+            changed = True
+    return changed
+
+
 # ── HTTP Handler ────────────────────────────────────────────────────
 
 class CommsHandler(http.server.BaseHTTPRequestHandler):
@@ -1084,13 +1095,7 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             acl[new_name] = acl.pop(channel_name)
             save_channels_acl(acl)
         subs = load_subscriptions()
-        changed = False
-        for ag in subs:
-            new_list = [new_name if ch == channel_name else ch for ch in subs[ag]]
-            if new_list != subs[ag]:
-                subs[ag] = new_list
-                changed = True
-        if changed:
+        if _rename_in_channel_lists(subs, channel_name, new_name):
             save_subscriptions(subs)
         # Update read markers so agents don't see renamed channel as fully unread
         markers_changed = False
@@ -1102,13 +1107,7 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             save_read_markers(AGENT_READ_MARKERS)
         # Update channel order preferences
         all_order = load_channel_order()
-        order_changed = False
-        for ag in all_order:
-            new_list = [new_name if ch == channel_name else ch for ch in all_order[ag]]
-            if new_list != all_order[ag]:
-                all_order[ag] = new_list
-                order_changed = True
-        if order_changed:
+        if _rename_in_channel_lists(all_order, channel_name, new_name):
             save_channel_order(all_order)
         write_message(new_name, "System",
                       f"Channel renamed from #{channel_name} to #{new_name}",
