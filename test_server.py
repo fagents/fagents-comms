@@ -1293,9 +1293,7 @@ class TestSubscriptionACL:
         url, token = url_and_token
         token2, agent2 = second_agent
         # Create restricted channel
-        _raw_request(url, token, "POST", "/api/channels", {"name": "sub-acl-test"})
-        _raw_request(url, token, "PUT", "/api/channels/sub-acl-test/acl",
-                     {"allow": ["TestBot"]})
+        _create_restricted_channel(url, token, "sub-acl-test")
         # OtherBot subscribes (currently allowed — subscription is metadata)
         s, body = _raw_request(url, token2, "PUT", f"/api/agents/{agent2}/channels",
                                {"channels": ["general", "sub-acl-test"]})
@@ -1312,9 +1310,7 @@ class TestSubscriptionACL:
         """Even if subscribed, restricted channels don't appear in channel list."""
         url, token = url_and_token
         token2, agent2 = second_agent
-        _raw_request(url, token, "POST", "/api/channels", {"name": "sub-hidden"})
-        _raw_request(url, token, "PUT", "/api/channels/sub-hidden/acl",
-                     {"allow": ["TestBot"]})
+        _create_restricted_channel(url, token, "sub-hidden")
         # OtherBot subscribes
         _raw_request(url, token2, "PUT", f"/api/agents/{agent2}/channels",
                      {"channels": ["general", "sub-hidden"]})
@@ -1330,9 +1326,7 @@ class TestSubscriptionACL:
         url, token = url_and_token
         token2, agent2 = second_agent
         # Setup
-        _raw_request(url, token, "POST", "/api/channels", {"name": "sub-fullblock"})
-        _raw_request(url, token, "PUT", "/api/channels/sub-fullblock/acl",
-                     {"allow": ["TestBot"]})
+        _create_restricted_channel(url, token, "sub-fullblock")
         # Subscribe unauthorized agent
         _raw_request(url, token2, "PUT", f"/api/agents/{agent2}/channels",
                      {"channels": ["sub-fullblock"]})
@@ -1359,9 +1353,7 @@ class TestSubscriptionACL:
         url, token = url_and_token
         token2, agent2 = second_agent
         # Create restricted channel
-        _raw_request(url, token, "POST", "/api/channels", {"name": "sub-reject"})
-        _raw_request(url, token, "PUT", "/api/channels/sub-reject/acl",
-                     {"allow": ["TestBot"]})
+        _create_restricted_channel(url, token, "sub-reject")
         # OtherBot tries to subscribe to restricted + open channels
         s, body = _raw_request(url, token2, "PUT", f"/api/agents/{agent2}/channels",
                                {"channels": ["general", "sub-reject"]})
@@ -1440,9 +1432,7 @@ class TestCreatorACLBypass:
         url, token = url_and_token
         token2, agent2 = second_agent
         # Creator makes a channel with only themselves
-        _raw_request(url, token, "POST", "/api/channels", {"name": "restricted-acl"})
-        _raw_request(url, token, "PUT", "/api/channels/restricted-acl/acl",
-                     {"allow": ["TestBot"]})
+        _create_restricted_channel(url, token, "restricted-acl")
         # Other agent tries to edit ACL — should be denied
         s, _ = _raw_request(url, token2, "PUT", "/api/channels/restricted-acl/acl",
                             {"allow": [agent2]})
