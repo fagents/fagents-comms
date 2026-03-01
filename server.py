@@ -161,27 +161,30 @@ def save_channels_acl(acl):
     _ACL_CACHE = acl
 
 
-def agent_can_access(channel_name, agent_name):
-    """Check if agent has access to channel. No ACL file or no entry = open.
+def _check_allow_list(allow_list, agent_name):
+    """Return True if agent_name is permitted by allow_list.
 
-    Supports group ACL entries: @humans (all human-type agents),
-    @ais (all AI-type agents), * (everyone), or specific agent names.
+    Supports: specific name, '*' (everyone), '@humans', '@ais'.
     """
+    if "*" in allow_list or agent_name in allow_list:
+        return True
+    if "@humans" in allow_list or "@ais" in allow_list:
+        profile = get_agent_profile(agent_name)
+        agent_type = profile.get("type", "ai")
+        if "@humans" in allow_list and agent_type == "human":
+            return True
+        if "@ais" in allow_list and agent_type == "ai":
+            return True
+    return False
+
+
+def agent_can_access(channel_name, agent_name):
+    """Check if agent has access to channel. No ACL file or no entry = open."""
     acl = load_channels_acl()
     entry = acl.get(channel_name)
     if entry is None:
         return True  # no ACL entry = open (backwards compat)
-    allow = entry.get("allow", [])
-    if "*" in allow or agent_name in allow:
-        return True
-    if "@humans" in allow or "@ais" in allow:
-        profile = get_agent_profile(agent_name)
-        agent_type = profile.get("type", "ai")
-        if "@humans" in allow and agent_type == "human":
-            return True
-        if "@ais" in allow and agent_type == "ai":
-            return True
-    return False
+    return _check_allow_list(entry.get("allow", []), agent_name)
 
 
 def agent_can_write(channel_name, agent_name):
@@ -189,8 +192,6 @@ def agent_can_write(channel_name, agent_name):
 
     If write_allow is defined, it gates writes separately from reads (allow).
     Falls back to allow if write_allow is absent (backwards compat).
-
-    Supports group ACL entries: @humans, @ais, *, or specific agent names.
     """
     acl = load_channels_acl()
     entry = acl.get(channel_name)
@@ -200,16 +201,7 @@ def agent_can_write(channel_name, agent_name):
     if write_allow is None:
         # No write_allow defined — fall back to unified allow (backwards compat)
         return agent_can_access(channel_name, agent_name)
-    if "*" in write_allow or agent_name in write_allow:
-        return True
-    if "@humans" in write_allow or "@ais" in write_allow:
-        profile = get_agent_profile(agent_name)
-        agent_type = profile.get("type", "ai")
-        if "@humans" in write_allow and agent_type == "human":
-            return True
-        if "@ais" in write_allow and agent_type == "ai":
-            return True
-    return False
+    return _check_allow_list(write_allow, agent_name)
 
 
 def list_accessible_channels(agent_name):
