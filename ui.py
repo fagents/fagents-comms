@@ -135,6 +135,15 @@ def _split_quotes(text):
     return quote_html, body_lines
 
 
+def _ctx_bar_class(pct):
+    """Return CSS class for a context % bar: healthy/warming/heavy/critical."""
+    return next(
+        (cls for thresh, cls in [(40, "ctx-healthy"), (70, "ctx-warming"), (90, "ctx-heavy")]
+         if pct < thresh),
+        "ctx-critical"
+    )
+
+
 def render_messages_html(messages, agent_profiles=None):
     profiles = agent_profiles or {}
     parts = []
@@ -190,11 +199,7 @@ def render_agent_panels_html(agent_names, agent_health):
         online = age_secs is not None and age_secs < 300
         if h:
             pct = h.get("context_pct", 0)
-            bar_class = next(
-                (cls for thresh, cls in [(40, "ctx-healthy"), (70, "ctx-warming"), (90, "ctx-heavy")]
-                 if pct < thresh),
-                "ctx-critical"
-            )
+            bar_class = _ctx_bar_class(pct)
             tokens_k = h.get("tokens", 0) // 1000
             status = h.get("status", "unknown")
             last_tool = html.escape(h.get("last_tool", "—"))
@@ -251,11 +256,7 @@ def render_compact_agent_panels_html(agent_names, agent_health, agent_profiles=N
                 f'</div>'
             )
         else:
-            bar_class = next(
-                (cls for thresh, cls in [(40, "ctx-healthy"), (70, "ctx-warming"), (90, "ctx-heavy")]
-                 if pct < thresh),
-                "ctx-critical"
-            )
+            bar_class = _ctx_bar_class(pct)
             panels.append(
                 f'<div style="display:flex;align-items:center;gap:6px;padding:3px 8px;font-size:11px">'
                 f'<span style="flex:1;white-space:nowrap">{dot}{ename}</span>'
