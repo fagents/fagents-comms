@@ -22,7 +22,7 @@ import pytest
 
 # We need to patch paths before importing server, so tests use tmpdir
 import server as _server_module
-from ui import _render_quote_line, render_messages_html
+from ui import _render_markdown, _render_quote_line, _split_quotes, render_messages_html
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────
@@ -1597,40 +1597,33 @@ class TestChannelCreationEdgeCases:
 class TestMarkdownRendering:
 
     def test_render_markdown_bold(self):
-        from ui import _render_markdown
         result = _render_markdown("hello **world**")
         assert "<strong>world</strong>" in result
 
     def test_render_markdown_code(self):
-        from ui import _render_markdown
         result = _render_markdown("run `npm install`")
         assert "<code>npm install</code>" in result
 
     def test_render_markdown_link(self):
-        from ui import _render_markdown
         result = _render_markdown("see https://example.com for details")
         assert 'href="https://example.com"' in result
         assert "target=\"_blank\"" in result
 
     def test_render_markdown_escapes_html(self):
-        from ui import _render_markdown
         result = _render_markdown("<script>alert('xss')</script>")
         assert "<script>" not in result
         assert "&lt;script&gt;" in result
 
     def test_render_markdown_newlines(self):
-        from ui import _render_markdown
         result = _render_markdown("line1\nline2")
         assert "<br>" in result
 
     def test_split_quotes_with_quotes(self):
-        from ui import _split_quotes
         quote_html, body = _split_quotes("> @Bob: hello\n\nmy reply")
         assert "<blockquote>" in quote_html
         assert body == ["", "my reply"]
 
     def test_split_quotes_no_quotes(self):
-        from ui import _split_quotes
         quote_html, body = _split_quotes("just a message")
         assert quote_html == ""
         assert body == ["just a message"]
