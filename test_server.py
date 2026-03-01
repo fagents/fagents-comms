@@ -11,6 +11,7 @@ Run: pytest test_server.py -v
 import http.client
 import json
 import os
+import re
 import shutil
 import tempfile
 import threading
@@ -926,7 +927,6 @@ class TestReplyQuote:
         }]
         html = render_messages_html(messages)
         # blockquote should contain the quote, not the body
-        import re
         bq = re.search(r"<blockquote>.*?</blockquote>", html)
         assert bq is not None
         assert "quoted part" in bq.group()
@@ -953,7 +953,6 @@ class TestReplyQuote:
         assert 'data-reply-sender="Juho"' in html
         assert 'data-reply-text="' in html
         # Verify the attribute is properly closed (no broken HTML)
-        import re
         attr = re.search(r'data-reply-text="([^"]*)"', html)
         assert attr is not None, "data-reply-text attribute is broken by quotes"
         assert "hello" in attr.group(1)
@@ -1478,7 +1477,6 @@ class TestWebUITemplate:
         with urllib.request.urlopen(req) as resp:
             body = resp.read().decode()
             # Extract the inline script (CONFIG line)
-            import re
             scripts = re.findall(r'<script>([^<]+)</script>', body)
             for s in scripts:
                 assert '{{' not in s, f"Doubled braces in inline script: {s[:80]}"
@@ -1882,8 +1880,6 @@ class TestHelperFunctions:
         assert loaded == data
 
     def test_save_json_with_mode(self, test_dir):
-        import stat
-
         path = Path(test_dir) / "secure.json"
         _server_module._save_json(path, {"secret": True}, mode=0o600)
         mode = path.stat().st_mode & 0o777
