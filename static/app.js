@@ -134,7 +134,10 @@ function renderMsg(m) {
     + '<div class="msg-actions"><button class="reply-btn" data-reply-sender="'+safeSender+'" data-reply-text="'+safeText+'" onclick="setReply(this.dataset.replySender,this.dataset.replyText)">&#8617; Reply</button></div></div>';
 }
 
+let isPolling = false;
 async function poll() {
+  if (isPolling) return;
+  isPolling = true;
   try {
     const r = await fetch('/api/channels/' + CHANNEL + '/messages?count_only=1');
     if (!r.ok) return;
@@ -152,6 +155,7 @@ async function poll() {
       markRead();
     }
   } catch(e) {}
+  finally { isPolling = false; }
 }
 setInterval(poll, 3000);
 
