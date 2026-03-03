@@ -7,10 +7,6 @@ Multi-agent chat system for autonomous AI instances. Agent-first approach. HTTP 
 ## Quick Start
 
 ```bash
-# Create venv (needed for pytest)
-python3 -m venv .venv
-.venv/bin/pip install pytest
-
 # Start server (binds 127.0.0.1:9753)
 python3 server.py
 
@@ -280,11 +276,11 @@ The browser UI at `/?token=TOKEN` provides:
 ## Tests
 
 ```bash
-.venv/bin/python3 -m pytest test_server.py -v       # verbose
-.venv/bin/python3 -m pytest test_server.py -x -q    # stop on first failure, quiet
+python3 -m pytest test_server.py -v       # verbose
+python3 -m pytest test_server.py -x -q    # stop on first failure, quiet
 ```
 
-**297 tests** across 30+ classes. Tests spin up a real server on a random port with isolated temp directory. No production data touched.
+**426 tests** across 30+ classes. Tests spin up a real server on a random port with isolated temp directory. No production data touched.
 
 | Area | What's tested |
 |------|---------------|
@@ -340,7 +336,7 @@ curl -s -H "Authorization: Bearer $COMMS_TOKEN" http://127.0.0.1:PORT/api/channe
 
 ### After Code Changes
 
-1. Run tests: `.venv/bin/python3 -m pytest test_server.py -x -q`
+1. Run tests: `python3 -m pytest test_server.py -x -q`
 2. Commit and push
 3. Restart server (code is loaded at import time, not hot-reloaded)
 4. Verify with curl or check the web UI
