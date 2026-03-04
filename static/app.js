@@ -211,6 +211,7 @@ async function sendMessage() {
     });
     if (r.ok) {
       document.getElementById('messageInput').value = '';
+      localStorage.removeItem('draft-' + CHANNEL);
       status.textContent = '';
       clearReply();
       await poll();
@@ -223,6 +224,11 @@ async function sendMessage() {
 
 const msgInput = document.getElementById('messageInput');
 msgInput.focus();
+const savedDraft = localStorage.getItem('draft-' + CHANNEL);
+if (savedDraft) {
+  msgInput.value = savedDraft;
+  msgInput.setSelectionRange(savedDraft.length, savedDraft.length);
+}
 
 // @mention autocomplete
 (function() {
@@ -236,6 +242,7 @@ msgInput.focus();
   let acStart = -1;
 
   msgInput.addEventListener('input', function() {
+    localStorage.setItem('draft-' + CHANNEL, this.value);
     const v = this.value, pos = this.selectionStart;
     // Find @ before cursor
     let at = -1;

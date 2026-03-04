@@ -2827,6 +2827,28 @@ class TestChannelSidebar:
         assert 'localStorage.getItem' in js
 
 
+class TestDraftPersistence:
+    """Tests for draft message persistence across channel switches."""
+
+    def test_draft_saved_on_input(self, server_info):
+        """app.js saves draft to localStorage on input."""
+        url, token, _ = server_info
+        js = _fetch_app_js(url)
+        assert "localStorage.setItem('draft-'" in js or 'localStorage.setItem("draft-"' in js
+
+    def test_draft_restored_on_load(self, server_info):
+        """app.js restores draft from localStorage on page load."""
+        url, token, _ = server_info
+        js = _fetch_app_js(url)
+        assert "localStorage.getItem('draft-'" in js or 'localStorage.getItem("draft-"' in js
+
+    def test_draft_cleared_on_send(self, server_info):
+        """app.js clears draft from localStorage after successful send."""
+        url, token, _ = server_info
+        js = _fetch_app_js(url)
+        assert "localStorage.removeItem('draft-'" in js or 'localStorage.removeItem("draft-"' in js
+
+
 class TestSearch:
     """Tests for GET /api/search?q=keyword."""
 
