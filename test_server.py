@@ -215,6 +215,31 @@ class TestTokenManagement:
         assert oct(stat.st_mode & 0o777) == "0o600"
         _remove_agent("PermCheck")
 
+    def test_tokens_cache_reloads_on_mtime_change(self, test_dir):
+        """load_tokens() re-reads from disk when file mtime changes (CLI add-agent fix)."""
+        # Cache is loaded
+        tokens_before = _server_module.load_tokens()
+        assert "TestBot" in tokens_before.values()
+
+        # Simulate external process writing to tokens.json (like CLI add-agent)
+        tokens_copy = dict(tokens_before)
+        fake_hash = _server_module._hash_token("external-token-123")
+        tokens_copy[fake_hash] = "ExternalAgent"
+        _server_module._save_json(_server_module.TOKENS_FILE, tokens_copy, mode=0o600)
+
+        # Bump mtime to ensure it differs (filesystem resolution can be 1s)
+        import stat as stat_mod
+        future = time.time() + 2
+        os.utime(_server_module.TOKENS_FILE, (future, future))
+
+        # load_tokens should detect mtime change and re-read
+        tokens_after = _server_module.load_tokens()
+        assert "ExternalAgent" in tokens_after.values(), \
+            "load_tokens() should re-read when file mtime changes"
+        assert _server_module.resolve_token("external-token-123") == "ExternalAgent"
+
+        _remove_agent("ExternalAgent")
+
 
 # ── Channel Operations ────────────────────────────────────────────────
 

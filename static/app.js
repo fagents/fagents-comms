@@ -355,8 +355,14 @@ const TYPE_COLORS = {
   'wakeup': '#3498db', 'compaction': '#da3633',
 };
 const urlToken = new URLSearchParams(window.location.search).get('token') || '';
-const tokenQ = urlToken ? '?token=' + encodeURIComponent(urlToken) : '';
-const tokenA = urlToken ? '&token=' + encodeURIComponent(urlToken) : '';
+// Strip token from URL — cookie is set by server on page load, no need to keep it visible
+if (urlToken) {
+  const cleanUrl = new URL(window.location);
+  cleanUrl.searchParams.delete('token');
+  window.history.replaceState({}, '', cleanUrl.pathname + (cleanUrl.search || ''));
+}
+const tokenQ = '';
+const tokenA = '';
 let lastActivityTs = '';
 const activityUrl = '/api/activity?tail=50' + tokenA;
 async function pollActivity() {

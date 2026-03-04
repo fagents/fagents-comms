@@ -85,7 +85,8 @@ AGENT_HEALTH.update(_load_json(AGENT_HEALTH_FILE))
 
 # ── Token management ────────────────────────────────────────────────
 
-_TOKENS_CACHE = None  # in-memory cache, invalidated on save
+_TOKENS_CACHE = None  # in-memory cache, invalidated on save or mtime change
+_TOKENS_MTIME = 0     # last known mtime of tokens.json
 
 
 def _hash_token(token):
@@ -94,17 +95,26 @@ def _hash_token(token):
 
 def load_tokens():
     """Load tokens.json → {hash: agent_name}.
-    Cached in memory; invalidated by save_tokens()."""
-    global _TOKENS_CACHE
-    if _TOKENS_CACHE is None:
+    Cached in memory; re-reads from disk when file mtime changes."""
+    global _TOKENS_CACHE, _TOKENS_MTIME
+    try:
+        mtime = os.path.getmtime(TOKENS_FILE)
+    except OSError:
+        mtime = 0
+    if _TOKENS_CACHE is None or mtime != _TOKENS_MTIME:
         _TOKENS_CACHE = _load_json(TOKENS_FILE)
+        _TOKENS_MTIME = mtime
     return _TOKENS_CACHE
 
 
 def save_tokens(tokens):
-    global _TOKENS_CACHE
+    global _TOKENS_CACHE, _TOKENS_MTIME
     _save_json(TOKENS_FILE, tokens, mode=0o600)
     _TOKENS_CACHE = tokens
+    try:
+        _TOKENS_MTIME = os.path.getmtime(TOKENS_FILE)
+    except OSError:
+        _TOKENS_MTIME = 0
 
 
 def resolve_agent_name(name):
