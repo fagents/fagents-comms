@@ -410,6 +410,17 @@ class TestAuth:
             data = json.loads(resp.read().decode())
         assert data["agent"] == "TestBot"
 
+    def test_cookie_auth_uses_host_header_port(self, url_and_token):
+        """Cookie name derives from Host header port, not server port (SSH tunnel case)."""
+        url, token = url_and_token
+        fake_port = "9999"
+        req = urllib.request.Request(f"{url}/api/whoami")
+        req.add_header("Host", f"127.0.0.1:{fake_port}")
+        req.add_header("Cookie", f"comms_token_{fake_port}={token}")
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read().decode())
+        assert data["agent"] == "TestBot"
+
     def test_bearer_auth(self, url_and_token):
         """Explicit Bearer token auth."""
         url, token = url_and_token

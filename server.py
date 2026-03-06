@@ -515,8 +515,13 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
         pass  # suppress access logs
 
     def _cookie_name(self):
-        """Port-specific cookie name so multiple servers on 127.0.0.1 don't collide."""
-        port = self.server.server_address[1]
+        """Port-specific cookie name so multiple servers on 127.0.0.1 don't collide.
+        Uses the Host header port (what the browser sees) so SSH tunnels work."""
+        host = self.headers.get("Host", "")
+        if ":" in host:
+            port = host.rsplit(":", 1)[1]
+        else:
+            port = str(self.server.server_address[1])
         return f"comms_token_{port}"
 
     def get_token(self):
