@@ -359,7 +359,7 @@ if (savedDraft) {
 // Activity feed live polling
 const TYPE_COLORS = {
   'thought': '#8b949e', 'tool': '#2ea043', 'heartbeat': '#d29922',
-  'wakeup': '#3498db', 'compaction': '#da3633',
+  'wakeup': '#3498db', 'compaction': '#da3633', 'error': '#f85149',
 };
 const urlToken = new URLSearchParams(window.location.search).get('token') || '';
 // Strip token from URL — cookie is set by server on page load, no need to keep it visible
