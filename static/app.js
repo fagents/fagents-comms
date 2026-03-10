@@ -388,7 +388,7 @@ async function pollActivity() {
       const agent = ev.agent || '?';
       const ac = autoColor(agent).border;
       const tc = TYPE_COLORS[ev.type] || '#8b949e';
-      const ts = (ev.ts || '').substring(11, 16) || ev.ts || '';
+      const ts = ev.ts ? (() => { try { const d = new Date(ev.ts); return isNaN(d) ? (ev.ts.substring(11,16)||ev.ts) : d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",hour12:false}); } catch(e) { return ev.ts.substring(11,16)||ev.ts; } })() : "";
       const sum = (ev.summary || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const det = (ev.detail || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       if (prevAgent && agent !== prevAgent) html += '<div class="act-sep"></div>';

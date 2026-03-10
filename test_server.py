@@ -725,6 +725,24 @@ class TestAgentActivity:
         for ev in data:
             assert ev["agent"] not in ("AgentA", "AgentB")
 
+    def test_activity_timestamps_preserved(self, client, url_and_token):
+        """API returns timestamps exactly as pushed — JS handles formatting."""
+        url, token = url_and_token
+        _server_module.AGENT_ACTIVITY["TestBot"] = []
+        events = [
+            {"ts": "2026-03-10T12:00:00Z", "type": "tool", "summary": "utc iso"},
+            {"ts": "2026-03-10 14:00 EET", "type": "tool", "summary": "local tz"},
+            {"ts": "2026-03-10 12:00", "type": "tool", "summary": "bare"},
+        ]
+        client.push_activity(events)
+        status, data = _raw_request(url, token, "GET",
+                                     "/api/agents/TestBot/activity?tail=10")
+        assert status == 200
+        ts_map = {e["summary"]: e["ts"] for e in data}
+        assert ts_map["utc iso"] == "2026-03-10T12:00:00Z"
+        assert ts_map["local tz"] == "2026-03-10 14:00 EET"
+        assert ts_map["bare"] == "2026-03-10 12:00"
+
     def test_invalid_events_ignored(self, client, url_and_token):
         """Events missing ts or type should not be stored."""
         url, token = url_and_token
@@ -1841,6 +1859,18 @@ class TestUIRendering:
         assert "Read file" in result
         assert "alive" in result
         assert "act-item" in result
+
+    def test_render_activity_iso_utc_timestamp(self):
+        """ISO UTC timestamps get time portion extracted for SSR."""
+        activity = {
+            "FTW": [
+                {"ts": "2026-03-10T12:00:00Z", "type": "tool", "summary": "utc event"},
+            ]
+        }
+        result = render_activity_html(activity)
+        # ts[11:16] on ISO format gives "12:00" (the UTC time portion)
+        assert "12:00" in result
+        assert "utc event" in result
 
     def test_render_activity_separator_between_agents(self):
         """Agent transitions get a visual separator."""
