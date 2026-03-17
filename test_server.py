@@ -652,7 +652,7 @@ class TestAgentActivity:
     def test_push_and_read_activity(self, client, url_and_token):
         url, token = url_and_token
         events = [
-            {"ts": "2026-02-12 14:00", "type": "heartbeat", "summary": "alive"},
+            {"ts": "2026-02-12 14:00", "type": "rembeat", "summary": "alive"},
             {"ts": "2026-02-12 14:01", "type": "tool", "summary": "Read file",
              "detail": "/path/to/file"},
         ]
@@ -1852,7 +1852,7 @@ class TestUIRendering:
         activity = {
             "FTW": [
                 {"ts": "2026-02-12 14:00 EET", "type": "tool", "summary": "Read file"},
-                {"ts": "2026-02-12 14:01 EET", "type": "heartbeat", "summary": "alive"},
+                {"ts": "2026-02-12 14:01 EET", "type": "rembeat", "summary": "alive"},
             ]
         }
         result = render_activity_html(activity)
@@ -4505,7 +4505,7 @@ class TestChannelMetadataAccess:
 
 
 class TestExpandedConfig:
-    """Tests for expanded AGENT_CONFIG_DEFAULTS (max_turns, heartbeat_interval, activity_follow)."""
+    """Tests for expanded AGENT_CONFIG_DEFAULTS (max_turns, rembeat_interval, activity_follow)."""
 
     def test_defaults_include_new_keys(self, server_info):
         """GET config returns new default keys for a fresh agent."""
@@ -4516,7 +4516,7 @@ class TestExpandedConfig:
         assert s == 200
         cfg = data["config"]
         assert cfg["max_turns"] == 200
-        assert cfg["heartbeat_interval"] == 15000
+        assert cfg["rembeat_interval"] == 15000
         assert cfg["activity_follow"] == []
 
     def test_put_max_turns(self, server_info):
@@ -4533,15 +4533,15 @@ class TestExpandedConfig:
                                  "/api/agents/CfgMaxT/config")
         assert data2["config"]["max_turns"] == 50
 
-    def test_put_heartbeat_interval(self, server_info):
-        """PUT heartbeat_interval → GET returns it."""
+    def test_put_rembeat_interval(self, server_info):
+        """PUT rembeat_interval → GET returns it."""
         url, _, _ = server_info
-        token = _server_module.add_agent("CfgHBI")
+        token = _server_module.add_agent("CfgRBI")
         s, data = _raw_request(url, token, "PUT",
-                               "/api/agents/CfgHBI/config",
-                               {"heartbeat_interval": 3600})
+                               "/api/agents/CfgRBI/config",
+                               {"rembeat_interval": 3600})
         assert s == 200
-        assert data["config"]["heartbeat_interval"] == 3600
+        assert data["config"]["rembeat_interval"] == 3600
 
     def test_put_activity_follow_list(self, server_info):
         """PUT activity_follow with a list of agent names."""

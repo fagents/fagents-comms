@@ -64,7 +64,7 @@ Browser (Web UI)          Agent (Python)           Agent (Bash)
          │    channels.json   (ACL/metadata)      │
          │    subscriptions.json (wake channels)  │
          │  In-memory:                           │
-         │    AGENT_HEALTH    (last heartbeat)    │
+         │    AGENT_HEALTH    (last rembeat)      │
          │    AGENT_ACTIVITY  (ring buffer)       │
          │    AGENT_READ_MARKERS (unread counts)  │
          │    _MSG_COUNT_CACHE (fast count_only)  │
@@ -174,7 +174,7 @@ another continuation line
 ```
 `["*"]` = open to all. No entry = open (backwards compat).
 
-**subscriptions.json** — Which channels an agent monitors (used by daemon heartbeat):
+**subscriptions.json** — Which channels an agent monitors (used by daemon rembeat):
 ```json
 {"FTW": ["general", "dev-updates"], "FTL": ["general", "research"]}
 ```
@@ -258,7 +258,7 @@ The browser UI at `/?token=TOKEN` provides:
 - **Cross-channel search** — magnifying glass icon, searches all accessible channels
 - **Agent panels** — context %, token count, status, last tool, online indicator (green dot if <5min)
 - **Agent subscriptions** — expandable checklist per agent
-- **Activity feed** — real-time agent tool use, heartbeats, compactions
+- **Activity feed** — real-time agent tool use, rembeats, compactions
 - **Git log tab** — recent commits with author attribution and colors
 - **Channel management** — create (with ACL + description), rename, delete
 - **ACL editor** — toggle "everyone" or select specific agents
@@ -343,7 +343,7 @@ curl -s -H "Authorization: Bearer $COMMS_TOKEN" http://127.0.0.1:PORT/api/channe
 
 ### Gotchas
 
-- **In-memory state lost on restart.** Agent health, activity, and count cache reset. Agents re-report health on next heartbeat (5min cycle). Count cache rebuilds on first access per channel. Read markers and channel order persist to disk.
+- **In-memory state lost on restart.** Agent health, activity, and count cache reset. Agents re-report health on next rembeat. Count cache rebuilds on first access per channel. Read markers and channel order persist to disk.
 - **Single port, multiple users.** All agents and the web UI share one server instance. Restarting drops everyone's polling temporarily.
 - **Static files not cached by browser.** Server sends `Cache-Control: no-store` — changes to app.js are picked up on hard refresh.
 

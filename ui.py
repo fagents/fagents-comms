@@ -86,8 +86,8 @@ def _hsl_to_hex(h, s, l):
 ACTIVITY_TYPE_STYLES = {
     "thought": {"border": "#8b949e", "label": "thought"},
     "tool": {"border": "#2ea043", "label": "tool"},
-    "heartbeat": {"border": "#d29922", "label": "heartbeat"},
-    "wakeup": {"border": "#3498db", "label": "wakeup"},
+    "rembeat": {"border": "#d29922", "label": "rembeat"},
+    "msgbeat": {"border": "#3498db", "label": "msgbeat"},
     "compaction": {"border": "#da3633", "label": "compaction"},
 }
 ACTIVITY_DEFAULT_STYLE = {"border": "#8b949e", "label": "event"}
@@ -665,7 +665,7 @@ async function loadAgents() {{
         <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#c9d1d9;margin-top:2px">
           <span>poll: <strong>${{cfg.poll_interval || 1}}s</strong></span>
           <span>max_turns: <strong>${{cfg.max_turns || 200}}</strong></span>
-          <span>heartbeat: <strong>${{cfg.heartbeat_interval || 15000}}s</strong></span>
+          <span>rembeat: <strong>${{cfg.rembeat_interval || 15000}}s</strong></span>
         </div>
         <button onclick="editConfig('${{en}}')" style="background:none;border:none;color:#58a6ff;cursor:pointer;font-size:10px;font-family:inherit;margin-top:4px">Edit config</button>
         <div id="cfgEditor-${{en}}" style="display:none"></div>
@@ -718,8 +718,8 @@ function editConfig(name) {{
         <input type="number" id="cfg-${{name}}-poll_interval" value="${{cfg.poll_interval || 1}}" min="1"></div>
       <div class="config-field"><label>max_turns</label>
         <input type="number" id="cfg-${{name}}-max_turns" value="${{cfg.max_turns || 200}}" min="1"></div>
-      <div class="config-field"><label>heartbeat_interval (s)</label>
-        <input type="number" id="cfg-${{name}}-heartbeat_interval" value="${{cfg.heartbeat_interval || 15000}}" min="60"></div>
+      <div class="config-field"><label>rembeat_interval (s)</label>
+        <input type="number" id="cfg-${{name}}-rembeat_interval" value="${{cfg.rembeat_interval || 15000}}" min="60"></div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="config-save" onclick="saveConfig('${{name}}')">Save</button>
         <span class="config-msg" id="cfgMsg-${{name}}"></span>
@@ -736,7 +736,7 @@ async function saveConfig(name) {{
       wake_channels: document.getElementById('cfg-' + name + '-wake_channels').value.trim(),
       poll_interval: parseInt(document.getElementById('cfg-' + name + '-poll_interval').value),
       max_turns: parseInt(document.getElementById('cfg-' + name + '-max_turns').value),
-      heartbeat_interval: parseInt(document.getElementById('cfg-' + name + '-heartbeat_interval').value),
+      rembeat_interval: parseInt(document.getElementById('cfg-' + name + '-rembeat_interval').value),
     }};
     const r = await fetch(`/api/agents/${{name}}/config`, {{
       method: 'PUT',

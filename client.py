@@ -122,7 +122,7 @@ class CommsClient:
 
     def push_activity(self, events):
         """Push activity events to server. events is a list of dicts with
-        keys: ts, type (thought/tool/heartbeat/wakeup/compaction), summary,
+        keys: ts, type (thought/tool/rembeat/msgbeat/compaction), summary,
         and optional detail.
         """
         name = self.whoami()

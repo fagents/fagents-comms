@@ -267,7 +267,7 @@ AGENT_CONFIG_DEFAULTS = {
     "wake_channels": "",
     "poll_interval": 1,
     "max_turns": 200,
-    "heartbeat_interval": 15000,
+    "rembeat_interval": 15000,
     "activity_follow": [],
 }
 
