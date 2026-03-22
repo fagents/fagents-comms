@@ -492,21 +492,17 @@ def write_message(channel_name, sender, message, msg_type="chat"):
             "channel": channel_name, "type": msg_type}
 
 
-def channel_exists(channel_name):
-    """Check if a channel log file exists."""
-    return (CHANNELS_DIR / f"{channel_name}.log").exists()
-
-
 def create_channel(channel_name):
     """Create a channel log file if it doesn't exist."""
     ensure_channels_dir()
     log_file = CHANNELS_DIR / f"{channel_name}.log"
     if not log_file.exists():
         log_file.touch()
+        _MSG_COUNT_CACHE.setdefault(channel_name, 0)
 
 
 def rename_channel_file(old_name, new_name):
-    """Rename a channel log file. Returns True on success, raises on conflict."""
+    """Rename a channel log file. Raises FileExistsError on conflict."""
     old_file = CHANNELS_DIR / f"{old_name}.log"
     new_file = CHANNELS_DIR / f"{new_name}.log"
     if new_file.exists():
