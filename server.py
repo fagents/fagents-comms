@@ -27,21 +27,47 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent
-CHANNELS_DIR = SCRIPT_DIR / "channels"
-TOKENS_FILE = SCRIPT_DIR / "tokens.json"
-CHANNELS_ACL_FILE = SCRIPT_DIR / "channels.json"
-SUBSCRIPTIONS_FILE = SCRIPT_DIR / "subscriptions.json"
-AGENT_CONFIG_FILE = SCRIPT_DIR / "agent_config.json"
-AGENT_HEALTH_FILE = SCRIPT_DIR / "agent_health.json"
-CHANNEL_ORDER_FILE = SCRIPT_DIR / "channel_order.json"
-READ_MARKERS_FILE = SCRIPT_DIR / "read_markers.json"
-AGENT_PROFILES_FILE = SCRIPT_DIR / "agent_profiles.json"
+
+# Data directory — configurable via --data-dir or DATA_DIR env var
+# Default: .agents/comms/ under the user's home (deployment-specific state)
+# Falls back to SCRIPT_DIR for backwards compatibility (existing installs before migration)
+_default_data_dir = os.environ.get("DATA_DIR", str(SCRIPT_DIR))
+DATA_DIR = Path(_default_data_dir)
+
+CHANNELS_DIR = DATA_DIR / "channels"
+TOKENS_FILE = DATA_DIR / "tokens.json"
+CHANNELS_ACL_FILE = DATA_DIR / "channels.json"
+SUBSCRIPTIONS_FILE = DATA_DIR / "subscriptions.json"
+AGENT_CONFIG_FILE = DATA_DIR / "agent_config.json"
+AGENT_HEALTH_FILE = DATA_DIR / "agent_health.json"
+CHANNEL_ORDER_FILE = DATA_DIR / "channel_order.json"
+READ_MARKERS_FILE = DATA_DIR / "read_markers.json"
+AGENT_PROFILES_FILE = DATA_DIR / "agent_profiles.json"
+UPLOADS_DIR = DATA_DIR / "uploads"
+
 DEFAULT_PORT = 9753
 BIND_ADDR = "127.0.0.1"
 MAX_MESSAGE_LEN = 10000
 MAX_MESSAGES_RESPONSE = 500
-UPLOADS_DIR = SCRIPT_DIR / "uploads"
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+def _configure_data_dir(data_dir: str):
+    """Reconfigure all data paths to use the given directory."""
+    global DATA_DIR, CHANNELS_DIR, TOKENS_FILE, CHANNELS_ACL_FILE
+    global SUBSCRIPTIONS_FILE, AGENT_CONFIG_FILE, AGENT_HEALTH_FILE
+    global CHANNEL_ORDER_FILE, READ_MARKERS_FILE, AGENT_PROFILES_FILE, UPLOADS_DIR
+    DATA_DIR = Path(data_dir)
+    CHANNELS_DIR = DATA_DIR / "channels"
+    TOKENS_FILE = DATA_DIR / "tokens.json"
+    CHANNELS_ACL_FILE = DATA_DIR / "channels.json"
+    SUBSCRIPTIONS_FILE = DATA_DIR / "subscriptions.json"
+    AGENT_CONFIG_FILE = DATA_DIR / "agent_config.json"
+    AGENT_HEALTH_FILE = DATA_DIR / "agent_health.json"
+    CHANNEL_ORDER_FILE = DATA_DIR / "channel_order.json"
+    READ_MARKERS_FILE = DATA_DIR / "read_markers.json"
+    AGENT_PROFILES_FILE = DATA_DIR / "agent_profiles.json"
+    UPLOADS_DIR = DATA_DIR / "uploads"
 
 # Server timezone — derived from system, used for since_minutes filtering
 SERVER_TZ = datetime.now().astimezone().tzinfo
@@ -1476,10 +1502,20 @@ def main():
                         help="Command to run")
     parser.add_argument("name", nargs="?", help="Agent name (for add-agent)")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--data-dir", help="Data directory (default: DATA_DIR env or script dir)")
     parser.add_argument("--type", choices=AGENT_TYPES, default="ai",
                         help="Agent type: human or ai (default: ai)")
     args = parser.parse_args()
 
+    if args.data_dir:
+        _configure_data_dir(args.data_dir)
+        # Reload persisted state from new location
+        AGENT_HEALTH.clear()
+        AGENT_HEALTH.update(_load_json(AGENT_HEALTH_FILE))
+        AGENT_READ_MARKERS.clear()
+        AGENT_READ_MARKERS.update(load_read_markers())
+
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     ensure_channels_dir()
 
     if args.command == "add-agent":
@@ -1511,7 +1547,7 @@ def main():
     # serve
     server = ThreadedHTTPServer((BIND_ADDR, args.port), CommsHandler)
     print(f"fagents-comms server on {BIND_ADDR}:{args.port}")
-    print(f"Channels dir: {CHANNELS_DIR}")
+    print(f"Data dir: {DATA_DIR}")
     print()
 
     tokens = load_tokens()

@@ -45,34 +45,14 @@ def test_dir():
 @pytest.fixture(scope="session")
 def server_info(test_dir):
     """Start a real server on a random port. Returns (url, token, agent_name)."""
-    # Patch server module paths to use temp dir
-    channels_dir = os.path.join(test_dir, "channels")
-    os.makedirs(channels_dir, exist_ok=True)
-    tokens_file = os.path.join(test_dir, "tokens.json")
-
-    _server_module.CHANNELS_DIR = _server_module.Path(channels_dir)
-    _server_module.TOKENS_FILE = _server_module.Path(tokens_file)
-    _server_module.CHANNELS_ACL_FILE = _server_module.Path(
-        os.path.join(test_dir, "channels.json"))
-    _server_module.SUBSCRIPTIONS_FILE = _server_module.Path(
-        os.path.join(test_dir, "subscriptions.json"))
-    _server_module.CHANNEL_ORDER_FILE = _server_module.Path(
-        os.path.join(test_dir, "channel_order.json"))
-    _server_module.READ_MARKERS_FILE = _server_module.Path(
-        os.path.join(test_dir, "read_markers.json"))
-    _server_module.AGENT_HEALTH_FILE = _server_module.Path(
-        os.path.join(test_dir, "agent_health.json"))
-    _server_module.AGENT_CONFIG_FILE = _server_module.Path(
-        os.path.join(test_dir, "agent_config.json"))
-    _server_module.AGENT_PROFILES_FILE = _server_module.Path(
-        os.path.join(test_dir, "agent_profiles.json"))
+    # Point all data paths at the temp dir
+    _server_module._configure_data_dir(test_dir)
+    os.makedirs(os.path.join(test_dir, "channels"), exist_ok=True)
     _server_module.AGENT_HEALTH.clear()
     _server_module.AGENT_ACTIVITY.clear()
     _server_module.AGENT_READ_MARKERS.clear()
     _server_module._ACL_CACHE = None  # reset ACL cache for test isolation
     _server_module._TOKENS_CACHE = None  # reset tokens cache for test isolation
-    _server_module.UPLOADS_DIR = _server_module.Path(
-        os.path.join(test_dir, "uploads"))
 
     # Create a test agent
     token = _server_module.add_agent("TestBot")
