@@ -492,6 +492,42 @@ def write_message(channel_name, sender, message, msg_type="chat"):
             "channel": channel_name, "type": msg_type}
 
 
+def channel_exists(channel_name):
+    """Check if a channel log file exists."""
+    return (CHANNELS_DIR / f"{channel_name}.log").exists()
+
+
+def create_channel(channel_name):
+    """Create a channel log file if it doesn't exist."""
+    ensure_channels_dir()
+    log_file = CHANNELS_DIR / f"{channel_name}.log"
+    if not log_file.exists():
+        log_file.touch()
+
+
+def rename_channel_file(old_name, new_name):
+    """Rename a channel log file. Returns True on success, raises on conflict."""
+    old_file = CHANNELS_DIR / f"{old_name}.log"
+    new_file = CHANNELS_DIR / f"{new_name}.log"
+    if new_file.exists():
+        raise FileExistsError(f"Channel '{new_name}' already exists")
+    if old_file.exists():
+        old_file.rename(new_file)
+    # Update count cache
+    if old_name in _MSG_COUNT_CACHE:
+        _MSG_COUNT_CACHE[new_name] = _MSG_COUNT_CACHE.pop(old_name)
+
+
+def delete_channel_file(channel_name):
+    """Delete a channel log file. Returns True if deleted, False if not found."""
+    log_file = CHANNELS_DIR / f"{channel_name}.log"
+    if not log_file.exists():
+        return False
+    log_file.unlink()
+    _MSG_COUNT_CACHE.pop(channel_name, None)
+    return True
+
+
 # ── Web UI (rendering in ui.py) ────────────────────────────────────
 from ui import page_html, agents_page_html
 
@@ -1133,16 +1169,11 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
         if new_name == channel_name:
             self.send_text("Same name", 400)
             return
-        old_file = CHANNELS_DIR / f"{channel_name}.log"
-        new_file = CHANNELS_DIR / f"{new_name}.log"
-        if new_file.exists():
+        try:
+            rename_channel_file(channel_name, new_name)
+        except FileExistsError:
             self.send_text(f"Channel '{new_name}' already exists", 409)
             return
-        if old_file.exists():
-            old_file.rename(new_file)
-        # Update count cache for rename
-        if channel_name in _MSG_COUNT_CACHE:
-            _MSG_COUNT_CACHE[new_name] = _MSG_COUNT_CACHE.pop(channel_name)
         acl = load_channels_acl()
         if channel_name in acl:
             acl[new_name] = acl.pop(channel_name)
@@ -1189,9 +1220,7 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             if not name:
                 self.send_text("Invalid channel name", 400)
                 return
-            channel_file = CHANNELS_DIR / f"{name}.log"
-            if not channel_file.exists():
-                channel_file.touch()
+            create_channel(name)
             # Set ACL if provided, otherwise default to ["*"]
             acl = load_channels_acl()
             if name not in acl:
@@ -1472,12 +1501,9 @@ class CommsHandler(http.server.BaseHTTPRequestHandler):
             if channel_name == "general":
                 self.send_text("Cannot delete #general", 403)
                 return
-            channel_file = CHANNELS_DIR / f"{channel_name}.log"
-            if not channel_file.exists():
+            if not delete_channel_file(channel_name):
                 self.send_text("Channel not found", 404)
                 return
-            channel_file.unlink()
-            _MSG_COUNT_CACHE.pop(channel_name, None)
             acl = load_channels_acl()
             acl.pop(channel_name, None)
             save_channels_acl(acl)
