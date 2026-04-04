@@ -446,6 +446,7 @@ def read_channel(name, since=0, since_minutes=None):
                     "sender": m.group(2),
                     "message": m.group(3),
                     "channel": name,
+                    "msg_id": len(messages) + 1,
                 })
             elif messages:
                 # Continuation line
@@ -496,8 +497,9 @@ def write_message(channel_name, sender, message, msg_type="chat"):
         _MSG_COUNT_CACHE[channel_name] = count_messages(channel_name)
     else:
         _MSG_COUNT_CACHE[channel_name] += 1
+    msg_id = _MSG_COUNT_CACHE.get(channel_name, 0)
     return {"ts": ts, "sender": sender, "message": message,
-            "channel": channel_name, "type": msg_type}
+            "channel": channel_name, "type": msg_type, "msg_id": msg_id}
 
 
 def create_channel(channel_name):
