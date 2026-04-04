@@ -235,6 +235,39 @@ class TestChannelOperations:
         assert total >= 1
         assert any(m["message"] == "hello world" for m in messages)
 
+    def test_msg_id_present_in_write_result(self, test_dir):
+        """write_message returns msg_id."""
+        result = _server_module.write_message("msgid-ch", "Bot", "first")
+        assert "msg_id" in result
+        assert result["msg_id"] >= 1
+
+    def test_msg_id_unique_per_message(self, test_dir):
+        """Each message gets a distinct msg_id within a channel."""
+        r1 = _server_module.write_message("msgid-ch2", "Bot", "one")
+        r2 = _server_module.write_message("msgid-ch2", "Bot", "two")
+        r3 = _server_module.write_message("msgid-ch2", "Bot", "three")
+        assert r1["msg_id"] != r2["msg_id"]
+        assert r2["msg_id"] != r3["msg_id"]
+        assert r1["msg_id"] < r2["msg_id"] < r3["msg_id"]
+
+    def test_msg_id_in_read_channel(self, test_dir):
+        """read_channel includes msg_id for each message."""
+        _server_module.write_message("msgid-ch3", "A", "hello")
+        _server_module.write_message("msgid-ch3", "B", "world")
+        messages, total = _server_module.read_channel("msgid-ch3")
+        assert total == 2
+        assert all("msg_id" in m for m in messages)
+        assert messages[0]["msg_id"] == 1
+        assert messages[1]["msg_id"] == 2
+
+    def test_msg_id_prevents_same_second_collision(self, test_dir):
+        """Two messages with identical timestamps get different msg_ids."""
+        _server_module.write_message("collision-ch", "Juho", "msg A")
+        _server_module.write_message("collision-ch", "Juho", "msg B")
+        messages, _ = _server_module.read_channel("collision-ch")
+        ids = [m["msg_id"] for m in messages]
+        assert len(ids) == len(set(ids)), f"msg_ids not unique: {ids}"
+
     def test_read_nonexistent_channel(self):
         messages, total = _server_module.read_channel("does-not-exist-xyz")
         assert messages == []
