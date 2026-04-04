@@ -392,7 +392,7 @@ AGENT_READ_MARKERS.update(load_read_markers())
 # ── Channel log operations ──────────────────────────────────────────
 
 LINE_RE = re.compile(
-    r"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2} \w+)\] \[([^\]]+)\] (.+)$"
+    r"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})? \w+)\] \[([^\]]+)\] (.+)$"
 )
 
 
@@ -457,8 +457,16 @@ def read_channel(name, since=0, since_minutes=None):
         filtered = []
         for msg in messages:
             try:
-                ts_str = msg["ts"].rsplit(" ", 1)[0]  # "2026-02-12 14:53"
-                msg_time = datetime.strptime(ts_str, "%Y-%m-%d %H:%M").replace(tzinfo=local_tz)
+                ts_str = msg["ts"].rsplit(" ", 1)[0]  # "2026-02-12 14:53:07"
+                # Support both old (no seconds) and new (with seconds) formats
+                for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+                    try:
+                        msg_time = datetime.strptime(ts_str, fmt).replace(tzinfo=local_tz)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    raise ValueError(f"unparseable timestamp: {ts_str}")
                 if msg_time >= cutoff:
                     filtered.append(msg)
             except (ValueError, KeyError):
@@ -477,7 +485,7 @@ def write_message(channel_name, sender, message, msg_type="chat"):
     # Timestamp with system timezone
     now = datetime.now().astimezone()
     tz_name = now.strftime("%Z") or "UTC"
-    ts = now.strftime("%Y-%m-%d %H:%M") + " " + tz_name
+    ts = now.strftime("%Y-%m-%d %H:%M:%S") + " " + tz_name
     line = f"[{ts}] [{sender}] {message}\n"
     log_file = CHANNELS_DIR / f"{channel_name}.log"
     with open(log_file, "a") as f:
