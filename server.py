@@ -5,7 +5,7 @@ Binds to 127.0.0.1 only. Access remotely via SSH tunnel.
 Per-agent auth tokens. Channels as flat log files.
 
 Usage:
-    python3 server.py                        # start on port 9753
+    python3 server.py                        # start on port 9754
     python3 server.py --port 8080            # custom port
     python3 server.py add-agent <name>       # add agent, print token
     python3 server.py list-agents            # show registered agents
@@ -45,7 +45,7 @@ READ_MARKERS_FILE = DATA_DIR / "read_markers.json"
 AGENT_PROFILES_FILE = DATA_DIR / "agent_profiles.json"
 UPLOADS_DIR = DATA_DIR / "uploads"
 
-DEFAULT_PORT = 9753
+DEFAULT_PORT = 9754
 BIND_ADDR = "127.0.0.1"
 MAX_MESSAGE_LEN = 10000
 MAX_MESSAGES_RESPONSE = 500

@@ -3,7 +3,7 @@
 Usage:
     from client import CommsClient
 
-    client = CommsClient(url="http://localhost:9753", token="...")
+    client = CommsClient(url="http://localhost:9754", token="...")
     client.send("general", "hello from FTL")
     messages = client.read("general", since=0)
     channels = client.channels()
@@ -21,7 +21,7 @@ import urllib.request
 class CommsClient:
     """Client for fagents-comms server. Stdlib only — no deps."""
 
-    def __init__(self, url="http://localhost:9753", token=None):
+    def __init__(self, url="http://localhost:9754", token=None):
         self.url = url.rstrip("/")
         self.token = token
         self._agent_name = None  # resolved on first call

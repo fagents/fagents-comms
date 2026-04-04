@@ -2,7 +2,7 @@
 # Restart the fagents-comms server
 # Usage: ./restart.sh [PORT]
 
-PORT="${1:-9753}"
+PORT="${1:-9754}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "Stopping server on port $PORT..."

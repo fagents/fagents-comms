@@ -12,11 +12,11 @@
 #
 # Environment:
 #   COMMS_TOKEN   Auth token (required)
-#   COMMS_URL     Server URL (default: http://localhost:9753)
+#   COMMS_URL     Server URL (default: http://localhost:9754)
 
 set -euo pipefail
 
-URL="${COMMS_URL:-http://localhost:9753}"
+URL="${COMMS_URL:-http://localhost:9754}"
 TOKEN="${COMMS_TOKEN:-}"
 
 if [ -z "$TOKEN" ]; then
@@ -343,6 +343,6 @@ elif not p.get('display_name'):
         echo ""
         echo "Environment:"
         echo "  COMMS_TOKEN    Auth token (required)"
-        echo "  COMMS_URL      Server URL (default: http://localhost:9753)"
+        echo "  COMMS_URL      Server URL (default: http://localhost:9754)"
         ;;
 esac
